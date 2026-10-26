@@ -1,33 +1,45 @@
 # Smart Rollator – ROS 2 Prototyp
 
-Hinderniserkennung im Frontsektor mit Sprachausgabe, lokal auf dem Raspberry Pi 5.
+Hinderniserkennung für Menschen mit Sehbehinderung am Rollator: LiDAR erkennt, die Kamera benennt,
+die Sprachausgabe warnt. Alles läuft lokal auf einem Raspberry Pi 5 ohne Netzverbindung.
 
-## Umgebung
+## Hardware
+- Raspberry Pi 5, offizielles 27-W-Netzteil
+- RPLIDAR S2L, vorn am Rollator, ca. 0,28 m über dem Boden
+- Logitech C920, ca. 0,46 m über dem Boden, 0,19 m hinter der LiDAR-Achse
+- Lautsprecher (Pi 5 hat keine Klinkenbuchse: HDMI, USB oder Bluetooth)
 
-- Ubuntu 24.04 LTS, ROS 2 Jazzy
-- RPLIDAR S2L mit dem Treiber `sllidar_ros2` (https://github.com/Slamtec/sllidar_ros2), in `~/ros2_ws/src` gebaut
-- Piper (Python-Paket `piper-tts` in `~/piper-venv`) mit der Stimme `de_DE-thorsten-medium`
-- Die Ansagen liegen als WAV-Dateien in `~/rollator_sounds` (`stop.wav`, `warn.wav`)
+## Software
+Ubuntu 24.04, ROS 2 Jazzy. Wichtigste Themen:
+- /scan (LiDAR), /image_raw (Kamera, YUYV 640 x 360)
+- rollator/hazard/front: SAFE, WARN oder STOP (Frontwarner)
+- rollator/object/detections: Kamera-Detektionen (YOLO)
+- rollator/object/fused: Detektion mit LiDAR-Abstand (erste Sensorfusion)
 
-## Knoten
+## Aufbau des Repositorys
+- smart_rollator_perception/: ROS-Paket mit front_obstacle und hazard_speaker
+- tools/camera_lidar/: Start von LiDAR und Kamera, Winkeltest, Detektor, Fusion
+- tools/lidar_tests/: Messkampagne (Aufzeichnung, Messplan, Auswertung, PROTOKOLL.md)
+- scripts/: Startskripte, Einrichtung von SSH und eigenem WLAN
+- config/: RViz-Konfiguration
 
-- `front_obstacle`: liest `/scan`, bewertet den Frontsektor und veröffentlicht `SAFE`, `WARN` oder `STOP` auf `rollator/hazard/front`
-- `hazard_speaker`: spielt bei Verschärfung des Zustands die passende Ansage ab
+## Installation (Kurzfassung)
+1. Ubuntu 24.04 und ros-jazzy-desktop, ros-jazzy-usb-cam installieren
+2. Treiber des LiDAR: https://github.com/Slamtec/sllidar_ros2 nach ~/ros2_ws/src klonen und mit colcon bauen
+3. Dieses Repository nach ~/ros2_ws/src klonen und bauen
+4. Sprachausgabe: Piper in ~/piper-venv, Stimme de_DE-thorsten-medium, Ansagen als WAV in ~/rollator_sounds
+5. Detektor: python3 -m venv --system-site-packages ~/yolo-venv und pip install ultralytics
 
 ## Start
+    ~/start_all.sh
+    ~/yolo-venv/bin/python ~/camera_lidar/camera_detector.py
+    python3 ~/camera_lidar/fusion_node.py --front-angle <Winkel> --cam-x -0.19 --cam-y 0 --cam-height 0.46
 
-Treiber:
+## Stand und Grenzen
+- Prototyp im Labor; Schwellenwerte des Frontwarners sind Startwerte (Messkampagne siehe tools/lidar_tests)
+- Kameraoptik aus der Kalibrierung der Gruppe F1 übernommen, nicht nachgemessen; Kameraneigung noch zu bestimmen
+- Das LiDAR sieht nur seine Ebene: Objekte über oder unter der Ebene und Glas werden nicht zuverlässig erkannt
 
-    ros2 launch sllidar_ros2 sllidar_s2_launch.py serial_port:=/dev/ttyUSB0
-
-Hinderniswarner (Winkel des Frontsektors am Sensor einsetzen):
-
-    ros2 run smart_rollator_perception front_obstacle --ros-args -p front_angle_deg:=<Winkel>
-
-Sprachausgabe:
-
-    ros2 run smart_rollator_perception hazard_speaker
-
-## Stand
-
-Die Schwellenwerte (Warnung 1,5 m, Stopp 0,8 m) sind Startwerte und noch nicht aus Messungen abgeleitet.
+## Lizenzen und Datenschutz
+- Lizenz des Projekts noch nicht festgelegt. ultralytics/YOLO steht unter AGPL-3.0, Piper und die Stimme haben eigene Lizenzen: vor einer Weitergabe klären.
+- Kamerabilder zeigen Personen: keine Bilder ohne Einwilligung speichern oder committen.
