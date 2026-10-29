@@ -43,3 +43,13 @@ Ubuntu 24.04, ROS 2 Jazzy. Wichtigste Themen:
 ## Lizenzen und Datenschutz
 - Lizenz des Projekts noch nicht festgelegt. ultralytics/YOLO steht unter AGPL-3.0, Piper und die Stimme haben eigene Lizenzen: vor einer Weitergabe klären.
 - Kamerabilder zeigen Personen: keine Bilder ohne Einwilligung speichern oder committen.
+
+## Zweite LiDAR-Ebene und Messwerkzeuge (Stand 29.10.2026)
+
+- `scripts/start_high.sh` startet die obere Ebene (zweiter LiDAR, optional Kamera) im Namensraum /high; `scripts/stop_all.sh` beendet beide Ebenen
+- `hazard_speaker` wertet beide Ebenen aus (staerkerer Zustand gilt, "Hindernis oben") und nennt bei sicherer Erkennung das Objekt
+- `tools/camera_lidar/hoehen_test.py` misst, welche Ebene welche Hoehe in welchem Abstand erkennt, und vergleicht mit dem Rampenmodell
+- `tools/camera_lidar/plane_coverage.py` rechnet Erfassungsfenster einer geneigten LiDAR-Ebene vorab
+- `tools/camera_lidar/scan_summary.py` zeigt als Text, in welchem Sektor etwas nah am Sensor liegt (Eigenechos)
+
+Bekannte Punkte: Eine geneigte 2D-Ebene ist eine Rampe; haengende Objekte werden nur in einem Abstandsfenster gesehen, die Warnlogik braucht dafuer ein Gedaechtnis. Die obere Ebene ist noch nicht auf Eigenechos und Frontwinkel geprueft.
