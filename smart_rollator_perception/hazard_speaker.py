@@ -1,14 +1,15 @@
-"""Sprachausgabe fuer den Frontwarner.
+"""Sprachausgabe fuer den Frontwarner mit ein oder zwei LiDAR-Ebenen.
 
-WARN (Objekt unter warn_dist_m)  -> "Achtung, <Objekt> vorne." wenn die Kamera das
-                                    Objekt sicher erkennt, sonst "Achtung, Hindernis vorne."
-STOP (Objekt unter stop_dist_m)  -> "Stopp!" (bewusst kurz)
+Eingaenge: rollator/hazard/front (untere Ebene), rollator/hazard/high (obere Ebene, optional),
+           rollator/object/fused und rollator/object/fused_high (Objektnamen der Kameras)
+Der staerkere Zustand beider Ebenen gilt.
 
-Die Warnung selbst kommt immer vom LiDAR (rollator/hazard/front). Die Kamera liefert
-nur den Namen, und nur dann, wenn ein erkanntes Objekt zum Hindernis passt:
-- Konfidenz mindestens min_conf
-- vom LiDAR bestaetigt, nahe genug (max_dist_m) und im Frontbereich (max_bearing_deg)
-- in den letzten max_age_s Sekunden mindestens min_hits Mal gesehen
+  STOP                      -> "Stopp!" (bewusst kurz)
+  WARN nur obere Ebene      -> "Achtung, Hindernis oben."
+  WARN (untere Ebene)       -> "Achtung, <Objekt> vorne." bei sicherer Erkennung, sonst "Hindernis vorne"
+
+Der Zustand einer Ebene gilt nur state_timeout_s Sekunden; verstummt eine Ebene, wird sie als SAFE
+gewertet und es erscheint eine Warnung im Log (kein stilles Weiterwarnen mit altem Zustand).
 """
 import json
 import os
@@ -28,8 +29,6 @@ def slug(cls):
 
 
 def pick_label(entries, now, max_age_s, min_hits):
-    """entries: Folge von (zeit, klasse). Gibt die haeufigste aktuelle Klasse zurueck
-    oder None, wenn keine oft genug gesehen wurde."""
     recent = [c for t, c in entries if now - t <= max_age_s]
     if not recent:
         return None
@@ -56,15 +55,20 @@ class HazardSpeaker(Node):
         self.declare_parameter('max_age_s', 1.5)
         self.declare_parameter('max_dist_m', 1.8)
         self.declare_parameter('max_bearing_deg', 25.0)
+        self.declare_parameter('state_timeout_s', 1.0)
 
-        self.create_subscription(String, 'rollator/hazard/front', self.on_state, 10)
+        self.create_subscription(String, 'rollator/hazard/front', self.on_low, 10)
+        self.create_subscription(String, 'rollator/hazard/high', self.on_high, 10)
         self.create_subscription(String, 'rollator/object/fused', self.on_fused, 10)
+        self.create_subscription(String, 'rollator/object/fused_high', self.on_fused, 10)
 
-        self.seen = deque(maxlen=200)      # (zeit, klasse) passender Objekte
+        self.state = {'low': 'SAFE', 'high': 'SAFE'}
+        self.stamp = {'low': 0.0, 'high': 0.0}
+        self.seen = deque(maxlen=200)
         self.proc = None
         self.last_state = 'SAFE'
         self.last_play = 0.0
-        self.get_logger().info('hazard_speaker gestartet (mit Objektnamen)')
+        self.get_logger().info('hazard_speaker gestartet (zwei Ebenen, Objektnamen)')
 
     def p(self, name):
         return self.get_parameter(name).value
@@ -76,50 +80,79 @@ class HazardSpeaker(Node):
             return
         now = time.monotonic()
         for o in data.get('objects', []):
-            if object_qualifies(o, self.p('min_conf'), self.p('max_dist_m'),
-                                self.p('max_bearing_deg')):
+            if object_qualifies(o, self.p('min_conf'), self.p('max_dist_m'), self.p('max_bearing_deg')):
                 self.seen.append((now, o['cls']))
+
+    def on_low(self, msg):
+        self.set_plane('low', msg.data)
+
+    def on_high(self, msg):
+        self.set_plane('high', msg.data)
+
+    def set_plane(self, plane, state):
+        if state not in ORDER:
+            return
+        self.state[plane] = state
+        self.stamp[plane] = time.monotonic()
+        self.update()
+
+    def current(self):
+        now = time.monotonic()
+        timeout = self.p('state_timeout_s')
+        cur = {}
+        for plane in ('low', 'high'):
+            cur[plane] = self.state[plane] if now - self.stamp[plane] <= timeout else 'SAFE'
+        if self.stamp['high'] > 0 and now - self.stamp['high'] > 3.0:
+            self.get_logger().warn('Obere Ebene sendet nicht mehr (nicht ueberwacht)',
+                                   throttle_duration_sec=10.0)
+        return cur
 
     def busy(self):
         return self.proc is not None and self.proc.poll() is None
 
-    def choose_file(self, state):
-        if state == 'STOP':
-            return 'stop.wav', None
+    def choose_files(self, eff, cur):
+        if eff == 'STOP':
+            return ['stop.wav'], None
+        if cur['low'] == 'SAFE' and cur['high'] != 'SAFE':
+            return ['warn_oben.wav', 'warn.wav'], 'oben'
         label = None
         if self.p('name_objects'):
             label = pick_label(self.seen, time.monotonic(), self.p('max_age_s'), self.p('min_hits'))
         if label:
-            name = f'warn_{slug(label)}.wav'
-            if os.path.isfile(os.path.join(self.p('sound_dir'), name)):
-                return name, label
-            self.get_logger().warn(f'Keine Ansage fuer "{label}" vorhanden, nehme "Hindernis"',
-                                   throttle_duration_sec=10.0)
-        return 'warn.wav', None
+            return [f'warn_{slug(label)}.wav', 'warn.wav'], label
+        return ['warn.wav'], None
 
-    def play(self, state):
-        name, label = self.choose_file(state)
-        path = os.path.join(self.p('sound_dir'), name)
-        if not os.path.isfile(path):
-            self.get_logger().error(f'Audiodatei fehlt: {path}', throttle_duration_sec=5.0)
+    def play(self, eff, cur):
+        candidates, label = self.choose_files(eff, cur)
+        path = None
+        for i, name in enumerate(candidates):
+            cand = os.path.join(self.p('sound_dir'), name)
+            if os.path.isfile(cand):
+                path = cand
+                if i > 0:
+                    self.get_logger().warn(f'Ansage {candidates[0]} fehlt, nehme {name}',
+                                           throttle_duration_sec=10.0)
+                    label = None
+                break
+        if path is None:
+            self.get_logger().error(f'Audiodatei fehlt: {candidates[-1]}', throttle_duration_sec=5.0)
             return
         if self.busy():
             self.proc.terminate()
         self.proc = subprocess.Popen(['aplay', '-q', path])
         self.last_play = time.monotonic()
-        self.get_logger().info(f'spiele {state}' + (f' ({label})' if label else ''))
+        self.get_logger().info(f'spiele {eff} ({label})' if label else f'spiele {eff}')
 
-    def on_state(self, msg):
-        state = msg.data
-        if state not in ORDER:
-            return
-        if state != 'SAFE':
+    def update(self):
+        cur = self.current()
+        eff = max(cur.values(), key=lambda s: ORDER[s])
+        if eff != 'SAFE':
             now = time.monotonic()
-            escalated = ORDER[state] > ORDER[self.last_state]
-            interval = self.p('repeat_stop_s' if state == 'STOP' else 'repeat_warn_s')
+            escalated = ORDER[eff] > ORDER[self.last_state]
+            interval = self.p('repeat_stop_s' if eff == 'STOP' else 'repeat_warn_s')
             if escalated or (not self.busy() and now - self.last_play >= interval):
-                self.play(state)
-        self.last_state = state
+                self.play(eff, cur)
+        self.last_state = eff
 
 
 def main():
