@@ -11,3 +11,5 @@ log/
 *.jsonl
 lidar_trials/
 yolo-venv/
+*.bak
+*.bak2
