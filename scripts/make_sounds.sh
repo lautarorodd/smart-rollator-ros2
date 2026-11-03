@@ -15,6 +15,7 @@ say() {   # say DATEI "TEXT"
 
 say warn.wav "Achtung, Hindernis vorne."
 [ -f "$OUT/stop.wav" ] || say stop.wav "Stopp!"
+say warn_oben.wav "Achtung, Hindernis oben."
 
 while IFS='|' read -r cls de; do
   [ -z "$cls" ] && continue
