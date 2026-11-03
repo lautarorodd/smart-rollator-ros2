@@ -1,0 +1,17 @@
+id;art;objekt;klasse;x_m;y_m;unten;oben;dauer_s;aufbau
+# x_m: Abstand Mitte unterer LiDAR bis Vorderkante Objekt (m), y_m: seitlich, links positiv (m)
+# unten/oben: ja = Objekt reicht in diese LiDAR-Ebene, nein = nicht, ? = unbekannt (nur beobachten)
+# art: statisch (Objekt steht), annaeherung (Person geht auf den Rollator zu), frei (keine Hindernisse)
+1;statisch;nichts;;;;nein;nein;10;Frei: 3 m vor dem Rollator nichts, niemand im Sichtfeld
+2;statisch;Person;person;2.5;0;ja;ja;5;Person steht 2,5 m genau vorn, Gesicht zum Rollator
+3;statisch;Person;person;1.1;0;ja;ja;5;Person steht 1,1 m genau vorn
+4;statisch;Person;person;0.4;0;ja;ja;5;Person steht 0,4 m genau vorn
+5;statisch;Person;person;1.1;0.6;ja;ja;5;Person 1,1 m vorn und 0,6 m nach LINKS versetzt (ausserhalb des Frontsektors)
+6;statisch;Person;person;1.1;-0.3;ja;ja;5;Person 1,1 m vorn und 0,3 m nach RECHTS versetzt
+7;statisch;Stuhl;chair;1.1;0;ja;?;5;Stuhl 1,1 m genau vorn, Sitzflaeche zum Rollator
+8;statisch;Karton;;1.0;0;ja;nein;5;Karton (mind. 40 cm hoch, unter der oberen Ebene) 1,0 m genau vorn
+9;statisch;Karton;;0.5;0;ja;nein;5;derselbe Karton 0,5 m genau vorn
+10;statisch;Brett;;1.0;0;nein;ja;5;Haengendes Hindernis 1,0 m vorn, NUR auf Hoehe der oberen Ebene (z. B. Brett auf Tisch, Beine ausserhalb des Frontsektors)
+11;statisch;Flasche;bottle;1.0;0;?;nein;5;Flasche (ca. 30 cm) 1,0 m genau vorn auf dem Boden (Grenzfall, nur beobachten)
+12;annaeherung;Person;person;;0;ja;ja;15;Person startet 3 m vorn und geht langsam bis 0,4 m auf den Rollator zu
+13;frei;nichts;;;;nein;nein;30;Rollator 30 s durch einen freien Flur schieben (mind. 1,4 m breit)

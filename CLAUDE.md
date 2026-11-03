@@ -23,6 +23,7 @@ Details: README.md, tools/camera_lidar/README.md, tools/lidar_tests/README.md.
   Es gibt also nur eine Quelle: eine Aenderung im Repo wirkt sofort auf dem Pi. Das Paket ist mit `colcon build --symlink-install` gebaut.
 - `tools/camera_lidar/` – Sensorstart (`sensors_launch.py`, `sensors_high_launch.py`), Detektor, Fusion, Messwerkzeuge (`scan_diff.py`, `scan_profile.py`, `scan_summary.py`)
 - `tools/lidar_tests/` – Messkampagne (Aufzeichnung, Plan, Auswertung)
+- `tools/gesamttest/` – gefuehrter Gesamttest (beide Ebenen, Fusion, Ansagen) mit Protokoll; Logik in `gesamttest_core.py`
 
 ## Konventionen
 - `base_link`: x = Gehrichtung, y = links, z = oben. Winkel der LaserScan-Nachricht: -180..180 Grad, links positiv.
@@ -42,7 +43,7 @@ Details: README.md, tools/camera_lidar/README.md, tools/lidar_tests/README.md.
 1. `front_obstacle.py`: Die Logzeile "naechster Punkt" soll den naechsten Punkt **im Frontsektor** zeigen (und getrennt das globale Minimum); heute ist sie wegen der Eigenechos (0,15 m bei +80 Grad) irrefuehrend. Mit Test.
 2. Eigenechos der Montage als zu ignorierende Sektoren fuehren, bevor beide Scans fusioniert werden.
 3. `HIGH_LIDAR_Z` und `HIGH_CAM_HEIGHT` in `rollator.env` stimmig machen (nachmessen).
-4. Gesamttest mit Lautsprecher fuer beide Ebenen und Protokoll (nur mit Hardware).
+4. Gesamttest mit Lautsprecher fuer beide Ebenen und Protokoll (nur mit Hardware): Werkzeug `tools/gesamttest/gesamttest.py`, Durchfuehrung offen.
 5. Kamera erreicht bei Volllast nur 15 bis 19 Hz (Ziel 30) und die CPU 77 Grad C: Ursache klaeren (nur mit Hardware).
 
 ## Lizenz und Datenschutz

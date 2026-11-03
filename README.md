@@ -63,6 +63,7 @@ der LiDAR-Treiber `~/ros2_ws/src/sllidar_ros2`.
 - `tools/camera_lidar/hoehen_test.py` misst, welche Ebene welche Hoehe in welchem Abstand erkennt, und vergleicht mit dem Rampenmodell
 - `tools/camera_lidar/plane_coverage.py` rechnet Erfassungsfenster einer geneigten LiDAR-Ebene vorab
 - `tools/camera_lidar/scan_summary.py` zeigt als Text, in welchem Sektor etwas nah am Sensor liegt (Eigenechos)
+- `tools/gesamttest/gesamttest.py` fuehrt durch den Gesamttest beider Ebenen mit Kamera und Sprachausgabe und schreibt ein Protokoll (siehe tools/gesamttest/README.md)
 
 Bekannte Punkte: Eine geneigte 2D-Ebene ist eine Rampe; haengende Objekte werden nur in einem Abstandsfenster gesehen, die Warnlogik braucht dafuer ein Gedaechtnis. Eigenechos und Frontwinkel der oberen Ebene: siehe Stand 03.11.2026.
 
