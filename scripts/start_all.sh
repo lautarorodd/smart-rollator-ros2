@@ -23,9 +23,14 @@ start() {   # start NAME BEFEHL...
 
 start sensors ~/start_sensors.sh
 sleep 8
+if ! pgrep -f sensors_launch.py > /dev/null; then
+  echo "FEHLER: Sensoren (LiDAR unten + Kamera) laufen nicht. Siehe ~/logs/sensors.log"
+  exit 1
+fi
 start front ros2 run smart_rollator_perception front_obstacle --ros-args -p front_angle_deg:=$FRONT -p warn_dist_m:=$WARN_DIST -p stop_dist_m:=$STOP_DIST
 start speaker ros2 run smart_rollator_perception hazard_speaker
 start detector ~/yolo-venv/bin/python ~/camera_lidar/camera_detector.py --no-image --conf 0.35 --classes person chair couch "dining table" bench bicycle dog backpack bottle
 sleep 10
 start fusion python3 ~/camera_lidar/fusion_node.py --front-angle $FRONT --cam-x $CAM_X --cam-y $CAM_Y --cam-height $CAM_HEIGHT --cam-pitch $CAM_PITCH
 echo "Fertig. Pruefen mit ~/status.sh ; live ansehen mit: watch -n 1 ~/live.sh"
+echo "Obere Ebene (zweiter LiDAR) danach mit: ~/start_high.sh"

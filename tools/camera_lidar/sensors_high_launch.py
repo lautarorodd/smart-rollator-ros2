@@ -5,7 +5,8 @@
       cam_x:=-0.10 cam_y:=0 cam_z:=0.18
 
 Themen: /high/scan, /high/image_raw. Alle Positionen in Metern.
-lidar_z: Hoehe der oberen LiDAR-Ebene MINUS Hoehe der unteren (0,28 m), also relativ zum unteren LiDAR.
+lidar_x, lidar_y, lidar_z: Lage des oberen LiDAR relativ zum unteren (x vorn positiv, y links positiv, z oben positiv).
+lidar_z: Hoehe der oberen LiDAR-Ebene MINUS Hoehe der unteren (0,28 m).
 cam_*: Lage der oberen Kamera relativ zum OBEREN LiDAR (hinter dem LiDAR = negativ).
 cam_enable:=false startet nur den LiDAR (z. B. fuer den Hoehentest ohne obere Kamera).
 Hinweis: Das Launch-File des Herstellers (sllidar_s2_launch.py) ist fuer die S2-Familie gedacht.
@@ -29,7 +30,7 @@ def generate_launch_description():
                                 'launch', 'sllidar_s2_launch.py')
     defaults = {
         'lidar_port': '/dev/ttyUSB1', 'cam_device': '/dev/video2',
-        'lidar_front_deg': '0.0', 'lidar_z': '0.72',
+        'lidar_front_deg': '0.0', 'lidar_x': '0.0', 'lidar_y': '0.0', 'lidar_z': '0.72',
         'cam_x': '0.0', 'cam_y': '0.0', 'cam_z': '0.18', 'cam_pitch_deg': '0.0',
         'cam_framerate': '30.0', 'cam_enable': 'true',
     }
@@ -62,13 +63,15 @@ def generate_launch_description():
 
     tf_laser = Node(
         package='tf2_ros', executable='static_transform_publisher',
-        arguments=['--x', '0', '--y', '0', '--z', LaunchConfiguration('lidar_z'),
+        arguments=['--x', LaunchConfiguration('lidar_x'), '--y', LaunchConfiguration('lidar_y'),
+                   '--z', LaunchConfiguration('lidar_z'),
                    '--yaw', PythonExpression(['-1.0 * ', LaunchConfiguration('lidar_front_deg'), DEG]),
                    '--frame-id', 'base_link', '--child-frame-id', 'laser_high'])
 
     tf_cam = Node(
         package='tf2_ros', executable='static_transform_publisher',
-        arguments=['--x', LaunchConfiguration('cam_x'), '--y', LaunchConfiguration('cam_y'),
+        arguments=['--x', PythonExpression([LaunchConfiguration('lidar_x'), ' + ', LaunchConfiguration('cam_x')]),
+                   '--y', PythonExpression([LaunchConfiguration('lidar_y'), ' + ', LaunchConfiguration('cam_y')]),
                    '--z', PythonExpression([LaunchConfiguration('lidar_z'), ' + ', LaunchConfiguration('cam_z')]),
                    '--pitch', PythonExpression([LaunchConfiguration('cam_pitch_deg'), DEG]),
                    '--frame-id', 'base_link', '--child-frame-id', 'camera_high_link'])
