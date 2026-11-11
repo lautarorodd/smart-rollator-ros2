@@ -32,9 +32,12 @@ start sensors_high ros2 launch ~/camera_lidar/sensors_high_launch.py \
   lidar_port:=$HIGH_LIDAR_PORT cam_device:=$HIGH_CAM_DEVICE cam_enable:=$CAM_FLAG lidar_front_deg:=$HIGH_FRONT \
   lidar_x:=${HIGH_LIDAR_X:-0.0} lidar_y:=${HIGH_LIDAR_Y:-0.0} lidar_z:=$HIGH_LIDAR_Z cam_x:=$HIGH_CAM_X cam_y:=$HIGH_CAM_Y cam_z:=$HIGH_CAM_Z cam_pitch_deg:=$HIGH_CAM_PITCH
 sleep 8
+# Eigenechos der Montage oben (optional, HIGH_IGNORE_SECTORS in ~/rollator.env)
+IGN_ARGS=()
+[ -n "$HIGH_IGNORE_SECTORS" ] && IGN_ARGS=(-p "ignore_sectors:=$HIGH_IGNORE_SECTORS")
 start front_high ros2 run smart_rollator_perception front_obstacle --ros-args \
   -r __node:=front_obstacle_high -r scan:=/high/scan -r rollator/hazard/front:=/rollator/hazard/high \
-  -p front_angle_deg:=$HIGH_FRONT -p warn_dist_m:=$WARN_DIST -p stop_dist_m:=$STOP_DIST
+  -p front_angle_deg:=$HIGH_FRONT -p warn_dist_m:=$WARN_DIST -p stop_dist_m:=$STOP_DIST "${IGN_ARGS[@]}"
 
 if [ "$HIGH_DETECTOR" = "1" ] && [ "$HIGH_CAM_ENABLE" = "1" ]; then
   start detector_high ~/yolo-venv/bin/python ~/camera_lidar/camera_detector.py --no-image --conf 0.35 \

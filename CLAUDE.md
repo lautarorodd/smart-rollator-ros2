@@ -8,7 +8,7 @@ Details: README.md, tools/camera_lidar/README.md, tools/lidar_tests/README.md.
 ## Sprache und Stil
 - Mit Lautaro auf **Spanisch** schreiben (Rioplatense, Voseo ist in Ordnung).
 - Dokumentation, Kommentare, Log-Texte und Docstrings auf **Deutsch**. In Skripten und Launch-Dateien ohne Umlaute (ue, ae, oe, ss), wie im bestehenden Code.
-- Tests im Repo sind einfache assert-Skripte (`tools/camera_lidar/test_*.py`), keine pytest-Abhaengigkeit.
+- Tests im Repo sind einfache assert-Skripte (`tools/camera_lidar/test_*.py`, `test/test_front_logic.py`), keine pytest-Abhaengigkeit.
 
 ## Wichtig: du laeufst vermutlich ohne Hardware
 - In einer Cloud-Sitzung gibt es weder Pi, LiDAR, Kamera noch `dmesg`. Alles, was nur auf dem Geraet pruefbar ist, ist **ungetestet**,
@@ -55,8 +55,10 @@ Details: README.md, tools/camera_lidar/README.md, tools/lidar_tests/README.md.
 - Reihenfolge der Schritte und Entscheidungen: README.md, Abschnitt "Jetson Orin Nano".
 
 ## Offene Aufgaben (Prioritaet von oben)
-1. `front_obstacle.py`: Die Logzeile "naechster Punkt" soll den naechsten Punkt **im Frontsektor** zeigen (und getrennt das globale Minimum); heute ist sie wegen der Eigenechos (0,15 m bei +80 Grad) irrefuehrend. Mit Test.
-2. Eigenechos der Montage als zu ignorierende Sektoren fuehren, bevor beide Scans fusioniert werden.
+1. Frontwinkel neu pruefen: auf der Jetson meldete `front_obstacle` SAFE, obwohl eine Person < 0,8 m vorn stand. Messung leer gegen Person
+   (`scan_diff.py`), beide LiDAR; dabei die Eigenechos messen und als `IGNORE_SECTORS`/`HIGH_IGNORE_SECTORS` vorschlagen (nur mit Hardware).
+2. Erledigt 11.11.2026: Logzeile Front/global und `ignore_sectors` (`front_logic.py`, `test/test_front_logic.py`). Fuer die Fusion beider
+   Scans dieselbe Funktion `in_sectors()` verwenden, sobald es sie gibt.
 3. `HIGH_LIDAR_Z` und `HIGH_CAM_HEIGHT` in `rollator.env` stimmig machen (nachmessen).
 4. Gesamttest mit Lautsprecher fuer beide Ebenen und Protokoll (nur mit Hardware).
 5. Kamera erreicht bei Volllast nur 15 bis 19 Hz (Ziel 30) und die CPU 77 Grad C: Ursache klaeren (nur mit Hardware).

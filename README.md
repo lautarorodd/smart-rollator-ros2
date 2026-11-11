@@ -89,12 +89,30 @@ in dmesg. Kamera nur 15 bis 19 Hz statt 30 Hz bei laufendem Gesamtsystem (mit De
 Ein "reset high-speed USB device" an usb 4-1 ist nicht zugeordnet (CP2102N-Adapter sind full-speed, vermutlich die Kamera).
 
 Offene Punkte:
-- Log von front_obstacle: "naechster Punkt" ist der Minimalpunkt des ganzen Scans, nicht des Frontsektors (zeigt immer das Eigenecho
-  bei 0,15 m), waehrend der Zustand SAFE/WARN/STOP nur den Frontsektor auswertet. Das Log ist irrefuehrend.
+- Erledigt am 11.11.2026: Das Log von front_obstacle zeigte als "naechster Punkt" das Minimum des ganzen Scans (immer das
+  Eigenecho bei 0,15 m). Neue Logzeile siehe Abschnitt "front_obstacle: Logzeile und Eigenechos".
 - Kameraframerate und Temperatur (Kuehlung, Last von Detektor und Fusion) untersuchen.
 - HIGH_LIDAR_Z = 0,37 m und HIGH_CAM_HEIGHT = 1,18 m ergeben zusammen keine stimmige Hoehe der oberen Ebene: nachmessen.
 - Gesamttest mit Lautsprecher (Ansage bei WARN/STOP der oberen Ebene, Reihenfolge der Meldungen) noch nicht protokolliert.
 - Obere Kamera (HIGH_CAM_ENABLE=0) ist nicht aufgebaut.
+
+## front_obstacle: Logzeile und Eigenechos (Stand 11.11.2026)
+
+Die Logik steckt in `smart_rollator_perception/front_logic.py` (ohne ROS), Test: `python3 test/test_front_logic.py`.
+Die Logzeile (einmal pro Sekunde) zeigt getrennt den naechsten Punkt im Frontsektor und das globale Minimum:
+
+    Front (-178 +-20 Grad): 2.76 m bei 174 Grad | global: 0.15 m bei 18 Grad | Zustand SAFE
+
+Fuer die Kalibrierung zaehlt der Teil "Front": steht eine Person vorn, muss dort ihr Abstand erscheinen. "global" zeigt,
+wo sonst noch etwas nah am Sensor liegt (Eigenechos).
+
+Eigenechos der Montage (Rahmen, Halterung, Kabel) koennen als Sektoren ignoriert werden: Parameter `ignore_sectors`,
+Sensorwinkel "von..bis" gegen den Uhrzeigersinn, Grenzen eingeschlossen, z. B. `"10..35,-80..-72"`; `"170..-170"` geht ueber +-180.
+Punkte darin zaehlen weder fuer den Zustand noch fuer die Logzeile (dort erscheint "ignoriert: N Punkte").
+`start_all.sh` und `start_high.sh` uebergeben `IGNORE_SECTORS` bzw. `HIGH_IGNORE_SECTORS` aus `~/rollator.env`, falls gesetzt;
+ohne die Variablen aendert sich nichts. Die Werte sind noch nicht gemessen und stehen daher noch nicht in `rollator.env`.
+Liegt ein ignorierter Sektor im Frontsektor, warnt der Knoten beim Start: dort wuerden Hindernisse uebersehen.
+Auf der Jetson (unterer LiDAR, Buero) lagen die Echos bei 0,15 m verteilt zwischen etwa +10 und +30 Grad und bei -76 Grad.
 
 ## Jetson Orin Nano (Migration, Stand 11.11.2026)
 

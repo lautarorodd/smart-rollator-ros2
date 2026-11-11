@@ -27,7 +27,10 @@ if ! pgrep -f sensors_launch.py > /dev/null; then
   echo "FEHLER: Sensoren (LiDAR unten + Kamera) laufen nicht. Siehe ~/logs/sensors.log"
   exit 1
 fi
-start front ros2 run smart_rollator_perception front_obstacle --ros-args -p front_angle_deg:=$FRONT -p warn_dist_m:=$WARN_DIST -p stop_dist_m:=$STOP_DIST
+# Eigenechos der Montage (optional, IGNORE_SECTORS in ~/rollator.env, z. B. "10..35,-80..-72")
+IGN_ARGS=()
+[ -n "$IGNORE_SECTORS" ] && IGN_ARGS=(-p "ignore_sectors:=$IGNORE_SECTORS")
+start front ros2 run smart_rollator_perception front_obstacle --ros-args -p front_angle_deg:=$FRONT -p warn_dist_m:=$WARN_DIST -p stop_dist_m:=$STOP_DIST "${IGN_ARGS[@]}"
 start speaker ros2 run smart_rollator_perception hazard_speaker
 start detector ~/yolo-venv/bin/python ~/camera_lidar/camera_detector.py --no-image --conf 0.35 --classes person chair couch "dining table" bench bicycle dog backpack bottle
 sleep 10
