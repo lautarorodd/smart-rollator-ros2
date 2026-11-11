@@ -1,6 +1,6 @@
 #!/bin/bash
-source /opt/ros/jazzy/setup.bash
-source ~/ros2_ws/install/setup.bash
+source "$(dirname "$(readlink -f "$0")")/plattform.sh"   # Pi/Jazzy oder Jetson/Humble
+source_ros
 export PYTHONUNBUFFERED=1
 echo "== Prozesse =="
 for p in sllidar_node usb_cam_node_exe front_obstacle hazard_speaker camera_detector.py fusion_node.py; do
@@ -16,6 +16,6 @@ if pgrep -f sensors_high_launch.py > /dev/null; then
   echo "  /high/image_raw: $(timeout 4 ros2 topic hz /high/image_raw 2>/dev/null | grep 'average rate' | tail -1)"
 fi
 echo "== Temperatur =="
-echo "  $(( $(cat /sys/class/thermal/thermal_zone0/temp) / 1000 )) Grad C"
+echo "  $(temp_c) Grad C ($(thermal_file 2>/dev/null || echo "keine Zone"))"
 echo "== Uhrzeit =="
 date

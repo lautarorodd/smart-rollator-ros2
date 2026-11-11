@@ -1,5 +1,6 @@
 #!/bin/bash
-source /opt/ros/jazzy/setup.bash
+source "$(dirname "$(readlink -f "$0")")/plattform.sh"   # Pi/Jazzy oder Jetson/Humble
+source_ros
 v4l2-ctl -d /dev/video0 -c focus_automatic_continuous=0 -c focus_absolute=0 -c exposure_dynamic_framerate=0
 exec ros2 run usb_cam usb_cam_node_exe --ros-args \
   -p video_device:=/dev/video0 -p image_width:=640 -p image_height:=360 \

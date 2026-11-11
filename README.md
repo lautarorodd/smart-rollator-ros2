@@ -114,9 +114,10 @@ Entscheidungen:
   JetPack/TensorRT oder bei anderer Bildgroesse neu exportiert; sie kommt nicht ins Repository.
 
 Unterschiede zum Pi, die angepasst werden muessen:
-- Startskripte laden fest `/opt/ros/jazzy/setup.bash`.
+- Erledigt (Schritt 2): Die Skripte laden ROS ueber `scripts/plattform.sh` (`ROS_SETUP`, sonst `ROS_DISTRO`, sonst humble/jazzy)
+  statt fest `/opt/ros/jazzy`; die Temperatur kommt aus der Zone vom Typ `tj-thermal`, sonst `cpu-thermal`, sonst Zone 0.
+  Test ohne Hardware: `bash scripts/test_plattform.sh`.
 - `pi_remote_setup.sh` erwartet `wlan0`; auf der Jetson heisst das WLAN-Geraet `wlP1p1s0`. Ob die WLAN-Karte den AP-Modus kann, ist offen.
-- Temperatur: `thermal_zone0` ist auf der Jetson `cpu-thermal`; massgeblich fuer die Drosselung ist `tj-thermal`.
 - Audio: die Jetson hat keine Klinkenbuchse (nur HDMI); ein USB-Lautsprecher und eine passende ALSA-Standardkarte sind noetig.
 - Die Jetson hat keine DLA; die Erkennung laeuft auf der GPU.
 

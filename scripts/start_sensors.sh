@@ -1,7 +1,7 @@
 #!/bin/bash
 # LiDAR unten + Kamera + statische Transformationen. Werte kommen aus ~/rollator.env.
-source /opt/ros/jazzy/setup.bash
-source ~/ros2_ws/install/setup.bash
+source "$(dirname "$(readlink -f "$0")")/plattform.sh"   # Pi/Jazzy oder Jetson/Humble
+source_ros
 source ~/rollator.env
 
 LIDAR_PORT=${LIDAR_PORT:-/dev/ttyUSB0}

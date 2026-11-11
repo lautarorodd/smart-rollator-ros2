@@ -1,8 +1,8 @@
 #!/bin/bash
 # Startet die OBERE Ebene im Hintergrund (Sensoren, Frontwarner, optional Erkennung und Fusion).
 # Voraussetzung: ~/start_all.sh laeuft schon (untere Ebene, Sprachausgabe).
-source /opt/ros/jazzy/setup.bash
-source ~/ros2_ws/install/setup.bash
+source "$(dirname "$(readlink -f "$0")")/plattform.sh"   # Pi/Jazzy oder Jetson/Humble
+source_ros
 source ~/rollator.env
 export PYTHONUNBUFFERED=1
 mkdir -p ~/logs

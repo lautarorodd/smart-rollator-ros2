@@ -1,7 +1,7 @@
 #!/bin/bash
 # Startet alle Knoten im Hintergrund; Ausgaben in ~/logs. Ueberlebt das Trennen der SSH-Sitzung.
-source /opt/ros/jazzy/setup.bash
-source ~/ros2_ws/install/setup.bash
+source "$(dirname "$(readlink -f "$0")")/plattform.sh"   # Pi/Jazzy oder Jetson/Humble
+source_ros
 source ~/rollator.env
 export PYTHONUNBUFFERED=1
 mkdir -p ~/logs
