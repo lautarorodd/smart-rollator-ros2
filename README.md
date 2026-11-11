@@ -95,3 +95,48 @@ Offene Punkte:
 - HIGH_LIDAR_Z = 0,37 m und HIGH_CAM_HEIGHT = 1,18 m ergeben zusammen keine stimmige Hoehe der oberen Ebene: nachmessen.
 - Gesamttest mit Lautsprecher (Ansage bei WARN/STOP der oberen Ebene, Reihenfolge der Meldungen) noch nicht protokolliert.
 - Obere Kamera (HIGH_CAM_ENABLE=0) ist nicht aufgebaut.
+
+## Jetson Orin Nano (Migration, Stand 11.11.2026)
+
+Der Prototyp wird vom Raspberry Pi 5 auf eine Jetson Orin Nano 8 GB umgezogen, damit die Objekterkennung auf der GPU
+(TensorRT) statt auf der CPU laeuft. Arbeitszweig: `jetson-migration`. Der letzte Stand auf dem Pi ist im Tag
+`pi5-jazzy-estable` gesichert (Commit `dc7cbe7`); zurueck zum Pi-Stand mit `git checkout pi5-jazzy-estable`.
+
+Plattform: JetPack 6.2.3 (L4T R36), Ubuntu 22.04, ROS 2 Humble aus apt, Python 3.10, CUDA 12.6, cuDNN 9, TensorRT 10.3,
+Energiemodus 25 W. LiDAR-Treiber sllidar_ros2 aus dem Quellcode in `~/ros2_ws/src/sllidar_ros2`.
+Klon unter `~/ros2_ws/src/smart-rollator-ros2` (auf dem Pi: `smart_rollator_perception`; der Paketname ist gleich).
+
+Entscheidungen:
+- Die Skripte bleiben auf beiden Plattformen lauffaehig (Pi/Jazzy und Jetson/Humble), damit der Pi als Rueckfallebene nutzbar bleibt.
+- `rollator.env` bleibt unveraendert: die Werte beschreiben die Montage der Sensoren, nicht den Rechner.
+- Der Detektor nutzt weiter ultralytics, laedt aber eine TensorRT-Engine (`yolo11n.engine`, FP16). Grund: nur wenige Zeilen
+  Aenderung, Klassenfilter, JSON und Fusion bleiben gleich. Die Engine wird auf der Jetson erzeugt und nach jedem Update von
+  JetPack/TensorRT oder bei anderer Bildgroesse neu exportiert; sie kommt nicht ins Repository.
+
+Unterschiede zum Pi, die angepasst werden muessen:
+- Startskripte laden fest `/opt/ros/jazzy/setup.bash`.
+- `pi_remote_setup.sh` erwartet `wlan0`; auf der Jetson heisst das WLAN-Geraet `wlP1p1s0`. Ob die WLAN-Karte den AP-Modus kann, ist offen.
+- Temperatur: `thermal_zone0` ist auf der Jetson `cpu-thermal`; massgeblich fuer die Drosselung ist `tj-thermal`.
+- Audio: die Jetson hat keine Klinkenbuchse (nur HDMI); ein USB-Lautsprecher und eine passende ALSA-Standardkarte sind noetig.
+- Die Jetson hat keine DLA; die Erkennung laeuft auf der GPU.
+
+Geprueft (ohne Sensoren): Der Python-Code nutzt keine APIs, die es nur in Jazzy gibt; die Tests `tools/camera_lidar/test_*.py`
+laufen mit Python 3.10 und numpy 1.21. Alles, was Sensoren, Kamera oder Lautsprecher braucht, ist auf der Jetson noch **ungetestet**.
+
+Fehlende Abhaengigkeiten auf der Jetson:
+- apt: `ros-humble-usb-cam`, `v4l-utils`, `python3-libnvinfer` (TensorRT fuer Python), optional `libnvinfer-bin` (`trtexec`)
+- `~/yolo-venv` (mit `--system-site-packages`): torch und torchvision als Jetson-Wheels von NVIDIA (CUDA 12.6), ultralytics, onnx, numpy < 2
+  (numpy 2 bricht `rclpy` und `cv_bridge`)
+- `~/piper-venv` mit piper-tts und der Stimme de_DE-thorsten-medium, danach `make_sounds.sh`
+
+Reihenfolge der Migration (von geringem zu hohem Risiko):
+1. Dokumentation (dieser Abschnitt)
+2. Startskripte fuer beide ROS-Versionen, Temperatur ueber den Zonentyp
+3. Paket bauen, `install_links.sh`, `front_obstacle` mit einem LiDAR
+4. apt-Pakete, Kamera und unteres LiDAR anschliessen, `start_all.sh` ohne Detektor
+5. Audio (USB-Lautsprecher, Piper, Ansagen)
+6. `~/yolo-venv` mit CUDA-PyTorch, Detektor zuerst mit `yolo11n.pt` auf der GPU
+7. `camera_detector.py`: Geraet und Modell als Argumente statt `device='cpu'`
+8. TensorRT-Engine exportieren und vergleichen (Inferenzzeit, Erkennungen)
+9. Feldbetrieb: WLAN-Hotspot, Betrieb ohne Monitor, Energiemodus
+10. Gesamttest beider Ebenen mit Lautsprecher und Protokoll
