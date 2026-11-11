@@ -122,7 +122,22 @@ Unterschiede zum Pi, die angepasst werden muessen:
 - Die Jetson hat keine DLA; die Erkennung laeuft auf der GPU.
 
 Geprueft (ohne Sensoren): Der Python-Code nutzt keine APIs, die es nur in Jazzy gibt; die Tests `tools/camera_lidar/test_*.py`
-laufen mit Python 3.10 und numpy 1.21. Alles, was Sensoren, Kamera oder Lautsprecher braucht, ist auf der Jetson noch **ungetestet**.
+laufen mit Python 3.10 und numpy 1.21.
+
+Geprueft mit Sensoren auf der Jetson (11.11.2026, Schritte 3 und 4):
+- Beide LiDAR und die C920 werden ohne Neustart erkannt (Treiber `cp210x` bzw. `uvcvideo`); die by-id-Links in `rollator.env`
+  passen unveraendert. Die Nummern sind vertauscht (unten = `ttyUSB1`, oben = `ttyUSB0`), daher weiter nur by-id verwenden.
+  Der Benutzer ist in der Gruppe `dialout`, `sudo` ist nicht noetig.
+- Beide LiDAR gleichzeitig: `/scan` 10,1 Hz und `/high/scan` 10,0 Hz, je etwa 3000 gueltige Punkte, Zustand OK, Modus DenseBoost.
+  Der obere LiDAR wurde dabei direkt mit `sllidar_node` im Namensraum `/high` gestartet, nicht mit `sensors_high_launch.py`.
+- `start_sensors.sh` (LiDAR unten, Kamera, tf): `/image_raw` 29,6 Hz bei 640x360 rgb8, tf `base_link->camera_link` und
+  `base_link->laser` wie in `rollator.env`; `sllidar` und `usb_cam` je etwa 11 % CPU, `tj-thermal` 46 Grad C.
+  Die Umwandlung `yuyv2rgb` laeuft auf der CPU (Meldung "No accelerated colorspace conversion"); die fehlende
+  Kalibrierdatei `~/.ros/camera_info/c920.yaml` ist wie auf dem Pi unkritisch.
+- `front_obstacle` startet und veroeffentlicht den Zustand. **Offen:** waehrend der Tests meldete es nur SAFE, obwohl eine Person
+  nach eigener Angabe weniger als 0,8 m vor dem Rollator stand. Frontwinkel (`FRONT`) und Sektor muessen mit Person vor dem
+  Rollator neu geprueft werden (`scan_diff.py`), bevor WARN/STOP als funktionierend gelten.
+- Noch nicht getestet: `start_all.sh` vollstaendig (Detektor braucht `~/yolo-venv`), `sensors_high_launch.py`, Lautsprecher.
 
 Fehlende Abhaengigkeiten auf der Jetson:
 - apt: `ros-humble-usb-cam`, `v4l-utils`, `python3-libnvinfer` (TensorRT fuer Python), optional `libnvinfer-bin` (`trtexec`)
@@ -133,8 +148,8 @@ Fehlende Abhaengigkeiten auf der Jetson:
 Reihenfolge der Migration (von geringem zu hohem Risiko):
 1. Dokumentation (dieser Abschnitt)
 2. Startskripte fuer beide ROS-Versionen, Temperatur ueber den Zonentyp
-3. Paket bauen, `install_links.sh`, `front_obstacle` mit einem LiDAR
-4. apt-Pakete, Kamera und unteres LiDAR anschliessen, `start_all.sh` ohne Detektor
+3. Paket bauen, `install_links.sh`, `front_obstacle` mit einem LiDAR (erledigt; WARN/STOP noch offen, siehe oben)
+4. apt-Pakete, Kamera und unteres LiDAR anschliessen, `start_all.sh` ohne Detektor (erledigt mit `start_sensors.sh`)
 5. Audio (USB-Lautsprecher, Piper, Ansagen)
 6. `~/yolo-venv` mit CUDA-PyTorch, Detektor zuerst mit `yolo11n.pt` auf der GPU
 7. `camera_detector.py`: Geraet und Modell als Argumente statt `device='cpu'`
