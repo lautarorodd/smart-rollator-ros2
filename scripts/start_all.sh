@@ -31,6 +31,10 @@ fi
 IGN_ARGS=()
 [ -n "$IGNORE_SECTORS" ] && IGN_ARGS=(-p "ignore_sectors:=$IGNORE_SECTORS")
 start front ros2 run smart_rollator_perception front_obstacle --ros-args -p front_angle_deg:=$FRONT -p warn_dist_m:=$WARN_DIST -p stop_dist_m:=$STOP_DIST "${IGN_ARGS[@]}"
+# Bluetooth-Lautsprecher (optional, BT_SPEAKER in ~/rollator.env): verbinden und als A2DP-Standardausgabe setzen
+if [ -n "$BT_SPEAKER" ]; then
+  "$(dirname "$(readlink -f "$0")")/bt_speaker.sh" "$BT_SPEAKER" || echo "WARNUNG: ohne Lautsprecher weiter (siehe oben)"
+fi
 start speaker ros2 run smart_rollator_perception hazard_speaker
 start detector ~/yolo-venv/bin/python ~/camera_lidar/camera_detector.py --no-image --conf 0.35 --classes person chair couch "dining table" bench bicycle dog backpack bottle
 sleep 10
