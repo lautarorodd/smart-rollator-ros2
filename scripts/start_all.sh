@@ -30,6 +30,9 @@ fi
 # Eigenechos der Montage (optional, IGNORE_SECTORS in ~/rollator.env, z. B. "10..35,-80..-72")
 IGN_ARGS=()
 [ -n "$IGNORE_SECTORS" ] && IGN_ARGS=(-p "ignore_sectors:=$IGNORE_SECTORS")
+# Gang und Seitenstreifen (optional, CORRIDOR_HALF_WIDTH in ~/rollator.env; unterer LiDAR mittig: lidar_y_m 0)
+[ -n "$CORRIDOR_HALF_WIDTH" ] && IGN_ARGS+=(-p corridor_half_width_m:=$CORRIDOR_HALF_WIDTH \
+  -p side_width_m:=${SIDE_WIDTH:-0.35} -p side_length_m:=${SIDE_LENGTH:-0.8} -p lidar_y_m:=${LIDAR_Y:-0.0})
 start front ros2 run smart_rollator_perception front_obstacle --ros-args -p front_angle_deg:=$FRONT -p warn_dist_m:=$WARN_DIST -p stop_dist_m:=$STOP_DIST "${IGN_ARGS[@]}"
 # Bluetooth-Lautsprecher (optional, BT_SPEAKER in ~/rollator.env): verbinden und als A2DP-Standardausgabe setzen
 if [ -n "$BT_SPEAKER" ]; then

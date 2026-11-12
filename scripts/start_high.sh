@@ -35,8 +35,12 @@ sleep 8
 # Eigenechos der Montage oben (optional, HIGH_IGNORE_SECTORS in ~/rollator.env)
 IGN_ARGS=()
 [ -n "$HIGH_IGNORE_SECTORS" ] && IGN_ARGS=(-p "ignore_sectors:=$HIGH_IGNORE_SECTORS")
+# Gang und Seitenstreifen; der obere LiDAR sitzt HIGH_LIDAR_Y seitlich versetzt, der Gang bleibt auf der Rollatormitte
+[ -n "$CORRIDOR_HALF_WIDTH" ] && IGN_ARGS+=(-p corridor_half_width_m:=$CORRIDOR_HALF_WIDTH \
+  -p side_width_m:=${SIDE_WIDTH:-0.35} -p side_length_m:=${SIDE_LENGTH:-0.8} -p lidar_y_m:=${HIGH_LIDAR_Y:-0.0})
 start front_high ros2 run smart_rollator_perception front_obstacle --ros-args \
   -r __node:=front_obstacle_high -r scan:=/high/scan -r rollator/hazard/front:=/rollator/hazard/high \
+  -r rollator/hazard/side:=/rollator/hazard/high_side \
   -p front_angle_deg:=$HIGH_FRONT -p warn_dist_m:=$WARN_DIST -p stop_dist_m:=$STOP_DIST "${IGN_ARGS[@]}"
 
 if [ "$HIGH_DETECTOR" = "1" ] && [ "$HIGH_CAM_ENABLE" = "1" ]; then
