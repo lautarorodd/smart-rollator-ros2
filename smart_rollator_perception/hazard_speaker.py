@@ -10,6 +10,8 @@ Der staerkere Zustand beider Ebenen gilt.
   nur Seite (beide Ebenen)  -> "Vorsicht, links." / "Vorsicht, rechts." / "Vorsicht, links und rechts."
                                (rollator/hazard/side, rollator/hazard/high_side; schwaechste Stufe, sofort bei neuer
                                Seite, sonst alle repeat_side_s Sekunden)
+  Hinweis (info_classes)    -> "Tuer vorne, drei Meter." einmal je Objekt, 2 bis 4 m (speaker_logic.py);
+                               nur wenn keine Warnung und kein Seitenhinweis ansteht
 
 Der Zustand einer Ebene gilt nur state_timeout_s Sekunden; verstummt eine Ebene, wird sie als SAFE
 gewertet und es erscheint eine Warnung im Log (kein stilles Weiterwarnen mit altem Zustand).
@@ -25,6 +27,7 @@ from rclpy.node import Node
 from std_msgs.msg import String
 
 from smart_rollator_perception.front_logic import SIDE_SOUNDS, combine_side
+from smart_rollator_perception.speaker_logic import InfoTracker, info_candidate, info_sound
 
 ORDER = {'SAFE': 0, 'WARN': 1, 'STOP': 2}
 
@@ -62,6 +65,12 @@ class HazardSpeaker(Node):
         self.declare_parameter('max_bearing_deg', 25.0)
         self.declare_parameter('state_timeout_s', 1.0)
         self.declare_parameter('repeat_side_s', 8.0)
+        # Hinweisansagen (Orientierung): Klassen kommagetrennt, leer = aus
+        self.declare_parameter('info_classes', 'door')
+        self.declare_parameter('info_min_conf', 0.4)
+        self.declare_parameter('info_min_dist_m', 1.8)
+        self.declare_parameter('info_max_dist_m', 4.5)
+        self.declare_parameter('info_max_bearing_deg', 25.0)
 
         self.create_subscription(String, 'rollator/hazard/front', self.on_low, 10)
         self.create_subscription(String, 'rollator/hazard/high', self.on_high, 10)
@@ -80,6 +89,8 @@ class HazardSpeaker(Node):
         self.side_stamp = {'low': 0.0, 'high': 0.0}
         self.last_side = None
         self.last_side_play = 0.0
+        self.info = InfoTracker()
+        self.info_classes = {c.strip() for c in str(self.p('info_classes')).split(',') if c.strip()}
         self.get_logger().info('hazard_speaker gestartet (zwei Ebenen, Objektnamen)')
 
     def p(self, name):
@@ -94,6 +105,10 @@ class HazardSpeaker(Node):
         for o in data.get('objects', []):
             if object_qualifies(o, self.p('min_conf'), self.p('max_dist_m'), self.p('max_bearing_deg')):
                 self.seen.append((now, o['cls']))
+            cand = info_candidate(o, self.info_classes, self.p('info_min_conf'), self.p('info_min_dist_m'),
+                                  self.p('info_max_dist_m'), self.p('info_max_bearing_deg'))
+            if cand:
+                self.info.seen(cand[0], cand[1], now)
 
     def on_low(self, msg):
         self.set_plane('low', msg.data)
@@ -130,6 +145,16 @@ class HazardSpeaker(Node):
         self.last_side_play = time.monotonic()
         self.get_logger().info(f'spiele Seite {side}')
         return True
+
+    def play_info(self, cls, meters):
+        name = info_sound(cls, meters)
+        path = os.path.join(self.p('sound_dir'), name)
+        self.info.announced(cls, time.monotonic())        # auch ohne Datei nicht dauernd neu versuchen
+        if not os.path.isfile(path):
+            self.get_logger().error(f'Audiodatei fehlt: {name} (make_sounds.sh)', throttle_duration_sec=10.0)
+            return
+        self.proc = subprocess.Popen(['aplay', '-q', path])
+        self.get_logger().info(f'spiele Hinweis {cls} {meters} m')
 
     def current(self):
         now = time.monotonic()
@@ -195,6 +220,10 @@ class HazardSpeaker(Node):
             elif side != self.last_side or now - self.last_side_play >= self.p('repeat_side_s'):
                 if self.play_side(side):
                     self.last_side = side
+            if not side and not self.busy():
+                due = self.info.due(now)
+                if due:
+                    self.play_info(*due)
         if eff != 'SAFE':
             self.last_side = None                   # nach einer Warnung die Seite wieder neu ansagen
         self.last_state = eff

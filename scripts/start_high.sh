@@ -45,7 +45,8 @@ start front_high ros2 run smart_rollator_perception front_obstacle --ros-args \
 
 if [ "$HIGH_DETECTOR" = "1" ] && [ "$HIGH_CAM_ENABLE" = "1" ]; then
   start detector_high ~/yolo-venv/bin/python ~/camera_lidar/camera_detector.py --no-image --conf 0.35 \
-    --classes person chair couch "dining table" bench bicycle dog backpack bottle --ros-args \
+    --model "${DETECT_MODEL:-yolo11n.pt}" \
+    --classes "${DETECT_CLASSES:-person,chair,couch,dining table,bench,bicycle,dog,backpack,bottle}" --ros-args \
     -r __node:=camera_detector_high -r image_raw:=/high/image_raw \
     -r rollator/object/detections:=/high/detections
   sleep 10

@@ -23,6 +23,8 @@ GERMAN = {
     'dog': 'Hund', 'cat': 'Katze', 'suitcase': 'Koffer', 'bed': 'Bett',
     'refrigerator': 'Kuehlschrank', 'umbrella': 'Regenschirm', 'cup': 'Becher',
     'book': 'Buch', 'handbag': 'Handtasche', 'door': 'Tuer',
+    'bus': 'Bus', 'truck': 'Lastwagen', 'motorcycle': 'Motorrad', 'traffic light': 'Ampel',
+    'fire hydrant': 'Hydrant', 'stop sign': 'Stoppschild',
 }
 
 

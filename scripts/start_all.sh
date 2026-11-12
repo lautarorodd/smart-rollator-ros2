@@ -39,7 +39,10 @@ if [ -n "$BT_SPEAKER" ]; then
   "$(dirname "$(readlink -f "$0")")/bt_speaker.sh" "$BT_SPEAKER" || echo "WARNUNG: ohne Lautsprecher weiter (siehe oben)"
 fi
 start speaker ros2 run smart_rollator_perception hazard_speaker
-start detector ~/yolo-venv/bin/python ~/camera_lidar/camera_detector.py --no-image --conf 0.35 --classes person chair couch "dining table" bench bicycle dog backpack bottle
+# Modell und Klassen aus ~/rollator.env (DETECT_MODEL, DETECT_CLASSES), sonst die bisherige Liste
+start detector ~/yolo-venv/bin/python ~/camera_lidar/camera_detector.py --no-image --conf 0.35 \
+  --model "${DETECT_MODEL:-yolo11n.pt}" \
+  --classes "${DETECT_CLASSES:-person,chair,couch,dining table,bench,bicycle,dog,backpack,bottle}"
 sleep 10
 start fusion python3 ~/camera_lidar/fusion_node.py --front-angle $FRONT --cam-x $CAM_X --cam-y $CAM_Y --cam-height $CAM_HEIGHT --cam-pitch $CAM_PITCH
 echo "Fertig. Pruefen mit ~/status.sh ; live ansehen mit: watch -n 1 ~/live.sh"

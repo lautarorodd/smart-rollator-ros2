@@ -1,4 +1,4 @@
-from camera_detector import pick_device, resolve_model
+from camera_detector import parse_classes, pick_device, resolve_model
 
 # Geraetewahl
 assert pick_device('auto', True) == 'cuda:0'
@@ -20,4 +20,9 @@ assert resolve_model('yolo11n.pt', here='/x', exists=lambda p: p == '/x/yolo11n.
 assert resolve_model('yolo11n.engine', here='/x', exists=lambda p: False) == 'yolo11n.engine'
 assert resolve_model('/abs/m.engine', here='/x', exists=lambda p: True) == '/abs/m.engine'
 assert resolve_model('sub/m.pt', here='/x', exists=lambda p: True) == 'sub/m.pt'
+# Klassenliste: Liste wie bisher oder kommagetrennt (rollator.env), Leerzeichen in Namen bleiben erhalten
+assert parse_classes(None) is None and parse_classes([]) is None and parse_classes([' , ']) is None
+assert parse_classes(['person', 'chair']) == ['person', 'chair']
+assert parse_classes(['person,dining table, chair']) == ['person', 'dining table', 'chair']
+assert parse_classes(['dining table']) == ['dining table']
 print('test_camera_detector ok')

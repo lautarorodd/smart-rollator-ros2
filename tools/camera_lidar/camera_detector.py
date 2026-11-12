@@ -7,7 +7,7 @@ nachdem ROS geladen wurde:
   ~/yolo-venv/bin/python ~/camera_lidar/camera_detector.py
 
 Optionen: --imgsz 320 (schneller) / 640 (genauer), --conf 0.35,
-          --classes chair person  (nur diese COCO-Klassen), --no-image,
+          --classes chair person  (nur diese Klassen; auch kommagetrennt: "chair,dining table"), --no-image,
           --device auto|cpu|cuda:0  (auto = GPU, wenn torch CUDA sieht, sonst CPU; Pi: cpu, Jetson: cuda:0),
           --model yolo11n.pt  (relativer Name: zuerst neben diesem Skript gesucht, z. B. auch yolo11n.engine)
 Die reine Logik (pick_device, resolve_model) kommt ohne ROS aus, Test: test_camera_detector.py.
@@ -35,6 +35,18 @@ def pick_device(requested, cuda_available):
     if req == 'cpu':
         return 'cpu'
     raise ValueError(f'--device {requested}: erwartet auto, cpu oder cuda:N')
+
+
+def parse_classes(items):
+    """--classes als Liste (person chair) oder kommagetrennt in einem Argument ("person,dining table,chair",
+    so steht es in rollator.env, weil Klassennamen Leerzeichen enthalten). Leer/None -> None (alle Klassen)."""
+    if not items:
+        return None
+    out = []
+    for it in items:
+        out += [c.strip() for c in it.split(',')] if ',' in it else [it.strip()]
+    out = [c for c in out if c]
+    return out or None
 
 
 def resolve_model(model, here=HERE, exists=os.path.exists):
@@ -77,6 +89,7 @@ def main():
     except ValueError as e:
         raise SystemExit(f'FEHLER: {e}')
     a.model = resolve_model(a.model)
+    a.classes = parse_classes(a.classes)
 
     class Detector(Node):
         def __init__(self, a):
