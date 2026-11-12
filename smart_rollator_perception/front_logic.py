@@ -10,6 +10,7 @@ Zwei Arten, den Bereich vor dem Rollator abzugrenzen:
     gemessen, lidar_y_m = seitlicher Versatz des LiDAR, links positiv), Abstand = Strecke x in Gehrichtung.
     Daneben links und rechts je ein Streifen side_width_m breit und side_length_m lang: Dinge dort sind kein
     Hindernis im Weg, aber sehr nah ("Vorsicht, rechts"). Ergebnis im Feld 'side'.
+    Punkte mit x <= min_x_m (direkt neben dem LiDAR) zaehlen im Gang-Modus nicht: dort ist der Rollator selbst.
   Grund fuer den Gang: der Kegel ist dicht am Rollator schmaler als der Rollator selbst (+-20 Grad: 22 cm breit
   bei 0,3 m) und weit vorn breiter als der Weg (1,1 m bei 1,5 m).
 """
@@ -64,7 +65,7 @@ def sectors_overlap_front(sectors, front_deg, half_width_deg, step_deg=0.5):
 
 def evaluate_scan(ranges, angle_min, angle_increment, range_max, front_deg, half_width_deg,
                   warn_dist, stop_dist, min_range, min_points, ignore=(),
-                  corridor_half_m=0.0, side_width_m=0.0, side_length_m=0.0, lidar_y_m=0.0):
+                  corridor_half_m=0.0, side_width_m=0.0, side_length_m=0.0, lidar_y_m=0.0, min_x_m=0.0):
     """Bewertet einen Scan. Gibt ein dict zurueck:
       raw       'SAFE' | 'WARN' | 'STOP' (ohne Hysterese)
       front     (abstand_m, sensorwinkel_grad) des naechsten Punkts im Frontsektor oder None
@@ -87,7 +88,9 @@ def evaluate_scan(ranges, angle_min, angle_increment, range_max, front_deg, half
         rr = np.where(valid, r, 0.0)
         x = rr * np.cos(np.radians(rel))                      # Strecke in Gehrichtung ab LiDAR
         y = rr * np.sin(np.radians(rel)) + lidar_y_m          # quer, im Rollator gemessen (links positiv)
-        ahead = use & (x > 0)
+        # Punkte direkt neben dem LiDAR (x <= min_x_m) gehoeren zum Rollator selbst (Rohre, Bremszug, Kabel):
+        # dort steht der Rollator schon, ein Hindernis dort waere bereits beruehrt. Zaehlen weder als Gang noch als Seite.
+        ahead = use & (x > max(min_x_m, 0.0))
         in_front = ahead & (np.abs(y) <= corridor_half_m)
         dist = x
         outer = corridor_half_m + side_width_m

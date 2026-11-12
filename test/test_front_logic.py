@@ -179,6 +179,16 @@ assert evg(scan_xy([(0.30, -0.28, 3)]), ignore=[(c - 3, c + 3)])['raw'] == 'SAFE
 # Sektor-Modus liefert nie eine Seite
 assert ev(make_scan([(-178.0 - 45, 10, 0.7)]))['side'] is None
 
+# min_x_m: Bremszug direkt neben dem oberen LiDAR (Sensor -89 Grad, 0,29 m -> x = 0,01 m) loeste dauernd STOP aus
+bz = (0.29 * math.cos(math.radians(88.0)), 0.29 * math.sin(math.radians(88.0)), 4)
+assert evg(scan_xy([bz]))['raw'] == 'STOP'
+r = evg(scan_xy([bz]), min_x_m=0.05)
+assert r['raw'] == 'SAFE' and r['side'] is None, r
+# ... ein echtes Hindernis knapp davor (x = 0,15 m, r = 0,16 m > min_range) bleibt sichtbar
+assert evg(scan_xy([(0.15, 0.05, 6)]), min_x_m=0.05)["raw"] == "STOP"
+# ... und der Sektor-Modus kennt min_x_m nicht (unveraendert)
+assert ev(make_scan([(-177.0, 15, 0.6)]))['raw'] == 'STOP'
+
 # --- Hysterese der Seite ---
 assert next_side(None, 'rechts', 0, 3) == ('rechts', 0, True)
 assert next_side('rechts', 'rechts', 0, 3) == ('rechts', 0, False)

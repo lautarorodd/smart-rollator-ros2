@@ -32,6 +32,9 @@ def main():
             self.declare_parameter('side_width_m', 0.35)
             self.declare_parameter('side_length_m', 0.8)
             self.declare_parameter('lidar_y_m', 0.0)
+            # Gang-Modus: Punkte bis zu dieser Strecke vor dem LiDAR ignorieren (Rohre, lose Kabel direkt neben dem
+            # Sensor; 12.11.2026 loeste ein Bremszug bei x = 0,01 m oben dauernd STOP aus)
+            self.declare_parameter('corridor_min_x_m', 0.05)
 
             self.ignore = parse_sectors(self.get_parameter('ignore_sectors').value)
             front = self.get_parameter('front_angle_deg').value
@@ -49,7 +52,8 @@ def main():
                 self.get_logger().info(
                     f'Gang-Modus: halbe Breite {corr:.3f} m, Seitenstreifen '
                     f'{self.get_parameter("side_width_m").value:.2f} x {self.get_parameter("side_length_m").value:.2f} m, '
-                    f'LiDAR-Versatz {self.get_parameter("lidar_y_m").value:+.3f} m')
+                    f'LiDAR-Versatz {self.get_parameter("lidar_y_m").value:+.3f} m, '
+                    f'ab {self.get_parameter("corridor_min_x_m").value:.2f} m vor dem LiDAR')
             self.create_subscription(
                 LaserScan, 'scan', self.on_scan, qos_profile_sensor_data)
 
@@ -69,7 +73,8 @@ def main():
                 front, half, p('warn_dist_m').value, p('stop_dist_m').value,
                 p('min_range_m').value, p('min_points').value, self.ignore,
                 corridor_half_m=p('corridor_half_width_m').value, side_width_m=p('side_width_m').value,
-                side_length_m=p('side_length_m').value, lidar_y_m=p('lidar_y_m').value)
+                side_length_m=p('side_length_m').value, lidar_y_m=p('lidar_y_m').value,
+                min_x_m=p('corridor_min_x_m').value)
 
             self.state, self.clear_count, changed = next_state(
                 self.state, res['raw'], self.clear_count, p('clear_scans').value)
