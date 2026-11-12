@@ -7,7 +7,8 @@ Werkzeuge zur gemeinsamen Nutzung von RPLIDAR S2L und Logitech C920.
 - `camera_detector.py` – YOLO-Objekterkennung auf dem Kamerabild (Python der venv `~/yolo-venv`)
 - `fusion_node.py` – erste Sensorfusion: Klasse aus der Kamera, Abstand aus dem LiDAR
 - `sensors_high_launch.py` – LiDAR (und optional Kamera) der oberen Ebene im Namensraum /high
-- `scan_diff.py` – findet den Frontwinkel eines LiDAR: Szene leer gegen Szene mit Person (Wand und Rahmen fallen heraus); `test_scan_diff.py`
+- `scan_diff.py` – findet den Frontwinkel eines LiDAR: Szene leer gegen Szene mit Person (Wand und Rahmen fallen heraus); `test_scan_diff.py`.
+  Mehrere Topics gleichzeitig und Wartezeit zum Hinstellen, wenn man allein misst: `python3 scan_diff.py /scan /high/scan --delay 15`
 - `scan_profile.py` – feste Eigenechos (Rahmen, Halterung, Wand) eines Scans; `scan_summary.py` – Sektortabelle
 - `camera_bearing.py`, `fusion_core.py` – reine Funktionen (ohne ROS), getestet mit `test_*.py`
 
