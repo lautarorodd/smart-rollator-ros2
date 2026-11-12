@@ -96,3 +96,42 @@ assert r8 and r8['d_floor_m'] is None and r8['match'] == 'nearest_erhoeht', r8
 r9 = fuse_detection(dict(det, cls='chair'), ranges, amin, inc, p)
 assert r9 and r9['match'] == 'floor', r9
 print('Alle Fusionstests bestanden')
+
+
+# --- Tuer (WIDE_CLASSES): Abstand in der Mitte statt naechster Gruppe; offene Tuer -> Rahmen ---
+def scan_segs(front_deg, segs):
+    n, inc = 3600, 2 * math.pi / 3600
+    out = []
+    for i in range(n):
+        rel = -math.pi + i * inc - math.radians(front_deg)
+        hits = [h for h in (seg_hit(rel, *sg) for sg in segs) if h is not None]
+        out.append(round(min(hits), 4) if hits else None)
+    return out, -math.pi, inc
+
+
+def door_bbox(dx, half_w, p, w=640, h=360):
+    fx, fy, cx, cy = intrinsics(p, w)
+    bl = math.atan2(half_w - p.cam_y, dx - p.cam_x)
+    br = math.atan2(-half_w - p.cam_y, dx - p.cam_x)
+    return {'x1': cx - fx * math.tan(bl), 'x2': cx - fx * math.tan(br), 'y1': 0.0, 'y2': float(h),
+            'img_w': w, 'img_h': h, 'cls': 'door'}
+
+
+# Gang 1,6 m breit (Waende bei y = +-0,8 m), geschlossene Tuer 0,9 m breit bei x = 3,0 m
+gang = [((0.3, 0.8), (3.0, 0.8)), ((0.3, -0.8), (3.0, -0.8)), ((3.0, 0.8), (3.0, -0.8))]
+pd = FusionParams(front_angle_deg=90.0, cam_x=-0.19, cam_y=0.0, cam_height=0.46, margin_deg=6.0)
+ranges, amin, inc = scan_segs(90.0, gang)
+det = door_bbox(3.0, 0.45, pd)
+r = fuse_detection(det, ranges, amin, inc, pd)
+assert r and r['match'] == 'center' and abs(r['distance_m'] - 3.0) < 0.1 and abs(r['bearing_deg']) < 3, r
+det_chair = dict(det, cls='chair')                      # gleiche Box als Stuhl: naechste Gruppe (bisheriges Verhalten)
+r2 = fuse_detection(det_chair, ranges, amin, inc, pd)
+assert r2 and r2['match'] != 'center', r2
+
+# Offene Tuer: Rahmen (Pfosten) bei x = 3,0, y = +-0,45; dahinter Raum bis x = 5,0
+offen = [((0.3, 0.8), (3.0, 0.8)), ((0.3, -0.8), (3.0, -0.8)),
+         ((3.0, 0.8), (3.0, 0.45)), ((3.0, -0.45), (3.0, -0.8)), ((5.0, 2.0), (5.0, -2.0))]
+ranges, amin, inc = scan_segs(90.0, offen)
+r = fuse_detection(det, ranges, amin, inc, pd)
+assert r and r['match'] == 'frame' and abs(r['distance_m'] - 3.0) < 0.25 and abs(r['bearing_deg']) < 3, r
+print('Tuer-Tests bestanden')

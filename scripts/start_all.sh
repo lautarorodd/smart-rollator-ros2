@@ -40,7 +40,7 @@ if [ -n "$BT_SPEAKER" ]; then
 fi
 start speaker ros2 run smart_rollator_perception hazard_speaker
 # Modell und Klassen aus ~/rollator.env (DETECT_MODEL, DETECT_CLASSES), sonst die bisherige Liste
-start detector ~/yolo-venv/bin/python ~/camera_lidar/camera_detector.py --no-image --conf 0.35 \
+start detector ~/yolo-venv/bin/python ~/camera_lidar/camera_detector.py --no-image --conf ${DETECT_CONF:-0.35} --imgsz ${DETECT_IMGSZ:-320} \
   --model "${DETECT_MODEL:-yolo11n.pt}" \
   --classes "${DETECT_CLASSES:-person,chair,couch,dining table,bench,bicycle,dog,backpack,bottle}"
 sleep 10

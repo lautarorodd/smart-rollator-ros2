@@ -67,7 +67,7 @@ class HazardSpeaker(Node):
         self.declare_parameter('repeat_side_s', 8.0)
         # Hinweisansagen (Orientierung): Klassen kommagetrennt, leer = aus
         self.declare_parameter('info_classes', 'door')
-        self.declare_parameter('info_min_conf', 0.4)
+        self.declare_parameter('info_min_conf', 0.2)   # YOLO-World: Tuer stabil, aber nur ~0,23 (12.11.2026)
         self.declare_parameter('info_min_dist_m', 1.8)
         self.declare_parameter('info_max_dist_m', 4.5)
         self.declare_parameter('info_max_bearing_deg', 25.0)

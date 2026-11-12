@@ -37,6 +37,11 @@ FLOOR_CLASSES = {
 }
 
 
+# Breite, flache Objekte, die oft das ganze Bild fuellen (Tuer): Abstand in der Bildmitte statt naechster Gruppe
+# (die naechste Gruppe waere Rahmen oder Seitenwand). Mitte viel weiter als die Raender -> offene Tuer, dann Rahmen.
+WIDE_CLASSES = {'door'}
+
+
 @dataclass
 class FusionParams:
     front_angle_deg: float = 0.0
@@ -120,6 +125,11 @@ def fuse_detection(det, ranges, angle_min, inc, p):
         cands.append({'d_cam': float(np.median(xcs[g])), 'distance_m': float(np.median(d)),
                       'bearing_deg': float((b.min() + b.max()) / 2),
                       'n_points': int(g.stop - g.start)})
+    if cls in WIDE_CLASSES:
+        wide = _wide_distance(x, y, xc, bc, sel, lo, hi, p.min_points)
+        if wide is not None:
+            wide.update({'d_floor_m': d_floor, 'n_clusters': len(cands)})
+            return wide
     if not cands:
         return None
     match = 'nearest' if on_floor_class else 'nearest_erhoeht'
@@ -133,3 +143,26 @@ def fuse_detection(det, ranges, angle_min, inc, p):
     out = dict(best)
     out.update({'match': match, 'd_floor_m': d_floor, 'n_clusters': len(cands)})
     return out
+
+
+def _wide_distance(x, y, xc, bc, sel, lo, hi, min_points, open_gap_m=0.8):
+    """Abstand eines breiten Objekts (Tuer): Median der Punkte um die Bildmitte der Box (match 'center').
+    Liegt die Mitte mehr als open_gap_m hinter den Raendern (Strahl geht durch die offene Tuer),
+    zaehlt der Rahmen an den Raendern (match 'frame'). None, wenn zu wenige Punkte."""
+    half = max(3.0, 0.1 * (hi - lo))
+    center = (lo + hi) / 2
+
+    def stats(mask, match):
+        if int(mask.sum()) < min_points:
+            return None
+        d = np.hypot(x[mask], y[mask])
+        b = np.degrees(np.arctan2(y[mask], x[mask]))
+        return {'d_cam': float(np.median(xc[mask])), 'distance_m': float(np.median(d)),
+                'bearing_deg': float(np.median(b)), 'n_points': int(mask.sum()), 'match': match}
+
+    mid = stats(sel & (np.abs(bc - center) <= half), 'center')
+    edge = stats(sel & ((np.abs(bc - lo) <= half) | (np.abs(bc - hi) <= half)), 'frame')
+    if mid is not None and edge is not None and mid['distance_m'] - edge['distance_m'] > open_gap_m:
+        edge['bearing_deg'] = mid['bearing_deg']        # Richtung = Mitte der Tuer, Abstand = Rahmen
+        return edge
+    return mid if mid is not None else edge
