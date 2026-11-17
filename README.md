@@ -175,6 +175,10 @@ Einrichtung, die dafuer noetig war (Stand 12.11.2026):
   (`/usr/lib/systemd/system/bluetooth.service.d/nv-bluetooth-service.conf`), dann gibt es nur HFP mit 8 kHz. Abhilfe: Datei gleichen
   Namens in `/etc/systemd/system/bluetooth.service.d/` mit `ExecStart=` und `ExecStart=/usr/lib/bluetooth/bluetoothd`, danach
   `daemon-reload` und Neustart von `bluetooth`; Profil `a2dp_sink` als Standardausgabe. `aplay` laeuft ueber PulseAudio.
+  PulseAudio-Benutzerkonfiguration aus `scripts/pulse_default.pa` nach `~/.config/pulse/default.pa` kopieren: nur A2DP und
+  kein Ruhezustand der Ausgabe (sonst trennt sich der Lautsprecher 2-3 min nach dem Verbinden, siehe docs/Protokoll_Jetson_2026-11.md).
+- Hotspot nur in 2,4 GHz moeglich: der WLAN-Treiber `rtl8822ce` von JetPack kennt nur den Laendercode `00` (5 GHz alle `NO_IR`);
+  `rtw_country_code=DE` wird ignoriert.
 - Uhr: kein RTC-Puffer, und das Hochschulnetz sperrt NTP. Nach jedem Stromverlust die Zeit setzen (z. B. aus dem HTTP-Date-Header).
 
 Fehlende Abhaengigkeiten auf der Jetson:

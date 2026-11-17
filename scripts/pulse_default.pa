@@ -1,0 +1,15 @@
+# Vorlage fuer ~/.config/pulse/default.pa auf der Jetson (Bluetooth-Lautsprecher). Installieren:
+#   mkdir -p ~/.config/pulse && cp scripts/pulse_default.pa ~/.config/pulse/default.pa && systemctl --user restart pulseaudio
+# Rollator (12.11.2026): Bluetooth-Lautsprecher nur mit A2DP, ohne Freisprechprofil (HFP/HSP).
+# Grund: der Anker SoundCore trennte alle 30-120 s erst HFP, dann die ganze Verbindung.
+# Rueckgaengig: diese Datei loeschen und "systemctl --user restart pulseaudio".
+.include /etc/pulse/default.pa
+.ifexists module-bluetooth-discover.so
+unload-module module-bluetooth-discover
+load-module module-bluetooth-discover headset=ofono
+.endif
+# Rollator (17.11.2026): Ausgabe nie in den Ruhezustand schicken. Der Lautsprecher fiel jeweils ca. 2-3 min nach dem
+# Verbinden aus, immer beim Wiederaufnehmen des Streams ("avdtp Start: Connection timed out"). Mit dauerndem Stream (Stille) testen.
+.ifexists module-suspend-on-idle.so
+unload-module module-suspend-on-idle
+.endif

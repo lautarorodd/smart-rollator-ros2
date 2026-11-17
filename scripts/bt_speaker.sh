@@ -18,6 +18,13 @@ done
 pactl info > /dev/null 2>&1 || { echo "WARNUNG: PulseAudio laeuft nicht (loginctl enable-linger gesetzt?)"; exit 1; }
 sleep 2   # Endpunkte anmelden lassen
 
+# Ausgabe nie ruhen lassen: der Anker SoundCore fiel ca. 2-3 min nach dem Verbinden aus, jedes Mal beim Wiederaufnehmen
+# des ruhenden Streams ("avdtp Start: Connection timed out"). Mit dauerndem Stream (Stille) stabil (17.11.2026).
+# Dauerhaft steht das in ~/.config/pulse/default.pa (Vorlage: scripts/pulse_default.pa); hier zur Sicherheit auch zur Laufzeit.
+if pactl list short modules 2>/dev/null | grep -q module-suspend-on-idle; then
+  pactl unload-module module-suspend-on-idle 2>/dev/null && echo "PulseAudio: Ruhezustand der Ausgabe abgeschaltet"
+fi
+
 # Der Lautsprecher (vertraut) verbindet sich nach dem Booten oft selbst, bevor PulseAudio laeuft: dann steht
 # "Connected: yes", aber PulseAudio hat keine Karte (kein A2DP). In dem Fall trennen und neu verbinden (17.11.2026).
 if connected && ! pactl list short cards 2>/dev/null | grep -q "bluez_card.$ID"; then

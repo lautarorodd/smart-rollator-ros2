@@ -203,11 +203,16 @@ Die Knoten laufen unabhängig von der SSH-Sitzung weiter; reißt das WLAN ab, wa
      Umbau der Griffe (Bremszug, Griffhebel). Nächster Schritt: Fotos/Ort klären, `scan_profile.py` am selben Ort,
      ggf. `corridor_min_x_m` auf 0,10 m und Bremszüge fixieren. Frage: Soll ein Türrahmen beim Durchfahren
      (beidseitig ~0,4 m) STOP auslösen?
-2. **Lautsprecher trennt sich alle 30–120 s** (15 Neuverbindungen pro Stunde). Muster: erst bricht das
-   Freisprechprofil ab, dann die ganze Verbindung; zuletzt „Host is down". Verdacht: **Akku des Lautsprechers**,
-   Abstand/Metall, oder Funkkonflikt mit dem Hotspot (gleicher Realtek-Chip, beide 2,4 GHz). Schon getan:
-   Freisprechprofil abgeschaltet (Abschnitt 4). Nächste Schritte: Lautsprecher laden und nah an der Jetson
-   montieren; zählen; sonst Hotspot auf 5 GHz (Regulierungsdomäne `DE` setzen, sudo).
+2. **Lautsprecher-Abbrüche – gelöst am 17.11.2026.** Die Abbrüche kamen immer ca. 2–3 min nach dem Verbinden, jedes
+   Mal beim Wiederaufnehmen des ruhenden Streams (`avdtp Start: Connection timed out`, danach „Host is down"); Abstand
+   spielte keine Rolle. Ursache: PulseAudio (`module-suspend-on-idle`) legt die Ausgabe in Pausen still, der Lautsprecher
+   geht dann in einen Sparmodus und antwortet beim nächsten Hinweis nicht mehr. Abhilfe: Modul nicht laden (dauernder
+   Stream mit Stille), Vorlage `scripts/pulse_default.pa`; `bt_speaker.sh` entlädt es zusätzlich zur Laufzeit. Test:
+   6,5 min ohne Abbruch, danach Ansage einwandfrei. Außerdem trennt `bt_speaker.sh` jetzt eine Verbindung ohne
+   A2DP-Karte (Lautsprecher hatte sich nach dem Booten vor PulseAudio verbunden) und verbindet neu.
+   Nebenbefund: Hotspot auf 5 GHz geht nicht – der Treiber `rtl8822ce` kennt nur Ländercode `00`, alle 5-GHz-Kanäle
+   `NO_IR`; `options rtl8822ce rtw_country_code=DE` (in `/etc/modprobe.d/rtl8822ce-country.conf`) wird ignoriert und
+   kann gelöscht werden. Als Client in einem fremden 5-GHz-Netz wäre die Jetson möglich.
 3. **Türhinweis** im Gebäude bestätigen (geschlossene Tür: „Tür vorne, zwei Meter" einmal gehört); offene Tür hängt
    an Punkt 1.
 4. **Test im Freien** mit Aufzeichnung: Bordsteine/Rampen (Bodentreffer des unteren LiDAR → falsche WARN),
