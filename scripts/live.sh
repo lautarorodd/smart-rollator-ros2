@@ -1,5 +1,6 @@
 #!/bin/bash
-echo "$(date +%T)   Temp: $(( $(cat /sys/class/thermal/thermal_zone0/temp) / 1000 )) C"
+source "$(dirname "$(readlink -f "$0")")/plattform.sh"
+echo "$(date +%T)   Temp: $(temp_c) C"
 echo "--- Frontwarner:"
 tail -n 3 ~/logs/front.log 2>/dev/null | sed 's/^.*front_obstacle\]: //' | cut -c1-100
 echo "--- Fusion:"

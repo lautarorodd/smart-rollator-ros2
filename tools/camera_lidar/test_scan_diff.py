@@ -1,5 +1,5 @@
 import math
-from scan_diff import profile_from_ranges, changed_groups, BIN
+from scan_diff import profile_from_ranges, changed_groups, countdown, format_groups, BIN
 
 # Synthetischer Scan: 360 Strahlen (1 Grad), Wand dicht bei Sensorwinkel 0 (hinten), sonst frei ab 3,5 m
 def make_scan(person_center=None, person_width=15, person_dist=1.85):
@@ -33,4 +33,16 @@ assert changed_groups(base, base) == []
 # Ungueltige Werte (inf, nan) werden ignoriert
 bad = ([float('inf')] * 360, math.radians(-180.0), math.radians(1.0), 0.05, 18.0)
 assert profile_from_ranges([bad]) == [99.0] * int(360 / BIN)
+
+# Ergebniszeilen: Kopf mit Topic, eine Zeile je Gruppe; ohne Gruppe ein Hinweis
+z = format_groups('/scan', g)
+assert z[0].startswith('/scan:') and len(z) == 1 + len(g) and 'Mitte' in z[1], z
+assert 'keine eindeutige' in format_groups('/high/scan', [])[0]
+
+# Countdown: genau sec Sekunden Wartezeit, Piepton in der ersten Zeile
+schlaf, aus = [], []
+countdown(15, sleep=schlaf.append, out=aus.append)
+assert sum(schlaf) == 15.0, schlaf
+assert aus[0].startswith('\a15 s'), aus
+assert [x.strip() for x in aus[1:]] == ['10', '5', '3', '2', '1'], aus
 print('test_scan_diff ok')

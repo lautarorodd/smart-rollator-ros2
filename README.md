@@ -89,9 +89,108 @@ in dmesg. Kamera nur 15 bis 19 Hz statt 30 Hz bei laufendem Gesamtsystem (mit De
 Ein "reset high-speed USB device" an usb 4-1 ist nicht zugeordnet (CP2102N-Adapter sind full-speed, vermutlich die Kamera).
 
 Offene Punkte:
-- Log von front_obstacle: "naechster Punkt" ist der Minimalpunkt des ganzen Scans, nicht des Frontsektors (zeigt immer das Eigenecho
-  bei 0,15 m), waehrend der Zustand SAFE/WARN/STOP nur den Frontsektor auswertet. Das Log ist irrefuehrend.
+- Erledigt am 11.11.2026: Das Log von front_obstacle zeigte als "naechster Punkt" das Minimum des ganzen Scans (immer das
+  Eigenecho bei 0,15 m). Neue Logzeile siehe Abschnitt "front_obstacle: Logzeile und Eigenechos".
 - Kameraframerate und Temperatur (Kuehlung, Last von Detektor und Fusion) untersuchen.
 - HIGH_LIDAR_Z = 0,37 m und HIGH_CAM_HEIGHT = 1,18 m ergeben zusammen keine stimmige Hoehe der oberen Ebene: nachmessen.
 - Gesamttest mit Lautsprecher (Ansage bei WARN/STOP der oberen Ebene, Reihenfolge der Meldungen) noch nicht protokolliert.
 - Obere Kamera (HIGH_CAM_ENABLE=0) ist nicht aufgebaut.
+
+## front_obstacle: Logzeile und Eigenechos (Stand 11.11.2026)
+
+Die Logik steckt in `smart_rollator_perception/front_logic.py` (ohne ROS), Test: `python3 test/test_front_logic.py`.
+Die Logzeile (einmal pro Sekunde) zeigt getrennt den naechsten Punkt im Frontsektor und das globale Minimum:
+
+    Front (-178 +-20 Grad): 2.76 m bei 174 Grad | global: 0.15 m bei 18 Grad | Zustand SAFE
+
+Fuer die Kalibrierung zaehlt der Teil "Front": steht eine Person vorn, muss dort ihr Abstand erscheinen. "global" zeigt,
+wo sonst noch etwas nah am Sensor liegt (Eigenechos).
+
+Eigenechos der Montage (Rahmen, Halterung, Kabel) koennen als Sektoren ignoriert werden: Parameter `ignore_sectors`,
+Sensorwinkel "von..bis" gegen den Uhrzeigersinn, Grenzen eingeschlossen, z. B. `"10..35,-80..-72"`; `"170..-170"` geht ueber +-180.
+Punkte darin zaehlen weder fuer den Zustand noch fuer die Logzeile (dort erscheint "ignoriert: N Punkte").
+`start_all.sh` und `start_high.sh` uebergeben `IGNORE_SECTORS` bzw. `HIGH_IGNORE_SECTORS` aus `~/rollator.env`, falls gesetzt;
+ohne die Variablen aendert sich nichts. Die Werte sind noch nicht gemessen und stehen daher noch nicht in `rollator.env`.
+Liegt ein ignorierter Sektor im Frontsektor, warnt der Knoten beim Start: dort wuerden Hindernisse uebersehen.
+Auf der Jetson (unterer LiDAR, Buero) lagen die Echos bei 0,15 m verteilt zwischen etwa +10 und +30 Grad und bei -76 Grad.
+
+## Jetson Orin Nano (Migration, Stand 11.11.2026)
+
+Der Prototyp wird vom Raspberry Pi 5 auf eine Jetson Orin Nano 8 GB umgezogen, damit die Objekterkennung auf der GPU
+(TensorRT) statt auf der CPU laeuft. Arbeitszweig: `jetson-migration`. Der letzte Stand auf dem Pi ist im Tag
+`pi5-jazzy-estable` gesichert (Commit `dc7cbe7`); zurueck zum Pi-Stand mit `git checkout pi5-jazzy-estable`.
+
+Plattform: JetPack 6.2.3 (L4T R36), Ubuntu 22.04, ROS 2 Humble aus apt, Python 3.10, CUDA 12.6, cuDNN 9, TensorRT 10.3,
+Energiemodus 25 W. LiDAR-Treiber sllidar_ros2 aus dem Quellcode in `~/ros2_ws/src/sllidar_ros2`.
+Klon unter `~/ros2_ws/src/smart-rollator-ros2` (auf dem Pi: `smart_rollator_perception`; der Paketname ist gleich).
+
+Entscheidungen:
+- Die Skripte bleiben auf beiden Plattformen lauffaehig (Pi/Jazzy und Jetson/Humble), damit der Pi als Rueckfallebene nutzbar bleibt.
+- `rollator.env` bleibt unveraendert: die Werte beschreiben die Montage der Sensoren, nicht den Rechner.
+- Der Detektor nutzt weiter ultralytics, laedt aber eine TensorRT-Engine (`yolo11n.engine`, FP16). Grund: nur wenige Zeilen
+  Aenderung, Klassenfilter, JSON und Fusion bleiben gleich. Die Engine wird auf der Jetson erzeugt und nach jedem Update von
+  JetPack/TensorRT oder bei anderer Bildgroesse neu exportiert; sie kommt nicht ins Repository.
+
+Unterschiede zum Pi, die angepasst werden muessen:
+- Erledigt (Schritt 2): Die Skripte laden ROS ueber `scripts/plattform.sh` (`ROS_SETUP`, sonst `ROS_DISTRO`, sonst humble/jazzy)
+  statt fest `/opt/ros/jazzy`; die Temperatur kommt aus der Zone vom Typ `tj-thermal`, sonst `cpu-thermal`, sonst Zone 0.
+  Test ohne Hardware: `bash scripts/test_plattform.sh`.
+- `pi_remote_setup.sh` erwartet `wlan0`; auf der Jetson heisst das WLAN-Geraet `wlP1p1s0`. Ob die WLAN-Karte den AP-Modus kann, ist offen.
+- Audio: die Jetson hat keine Klinkenbuchse (nur HDMI); Lautsprecher daher per Bluetooth (siehe unten).
+- Die Jetson hat keine DLA; die Erkennung laeuft auf der GPU.
+
+Geprueft (ohne Sensoren): Der Python-Code nutzt keine APIs, die es nur in Jazzy gibt; die Tests `tools/camera_lidar/test_*.py`
+laufen mit Python 3.10 und numpy 1.21.
+
+Geprueft mit Sensoren auf der Jetson (11.11.2026, Schritte 3 und 4):
+- Beide LiDAR und die C920 werden ohne Neustart erkannt (Treiber `cp210x` bzw. `uvcvideo`); die by-id-Links in `rollator.env`
+  passen unveraendert. Die Nummern sind vertauscht (unten = `ttyUSB1`, oben = `ttyUSB0`), daher weiter nur by-id verwenden.
+  Der Benutzer ist in der Gruppe `dialout`, `sudo` ist nicht noetig.
+- Beide LiDAR gleichzeitig: `/scan` 10,1 Hz und `/high/scan` 10,0 Hz, je etwa 3000 gueltige Punkte, Zustand OK, Modus DenseBoost.
+  Der obere LiDAR wurde dabei direkt mit `sllidar_node` im Namensraum `/high` gestartet, nicht mit `sensors_high_launch.py`.
+- `start_sensors.sh` (LiDAR unten, Kamera, tf): `/image_raw` 29,6 Hz bei 640x360 rgb8, tf `base_link->camera_link` und
+  `base_link->laser` wie in `rollator.env`; `sllidar` und `usb_cam` je etwa 11 % CPU, `tj-thermal` 46 Grad C.
+  Die Umwandlung `yuyv2rgb` laeuft auf der CPU (Meldung "No accelerated colorspace conversion"); die fehlende
+  Kalibrierdatei `~/.ros/camera_info/c920.yaml` ist wie auf dem Pi unkritisch.
+- `front_obstacle` startet und veroeffentlicht den Zustand. **Offen:** waehrend der Tests meldete es nur SAFE, obwohl eine Person
+  nach eigener Angabe weniger als 0,8 m vor dem Rollator stand. Frontwinkel (`FRONT`) und Sektor muessen mit Person vor dem
+  Rollator neu geprueft werden (`scan_diff.py`), bevor WARN/STOP als funktionierend gelten.
+- Frontwinkel und Eigenechos (12.11.2026, `scan_diff.py` beide LiDAR, `scan_profile.py`, Fotos): `FRONT` (-177,5) und
+  `HIGH_FRONT` (-176,7 nach Abzug des seitlichen Versatzes) bestaetigt; `IGNORE_SECTORS` / `HIGH_IGNORE_SECTORS` in `rollator.env`
+  (Korbknaeufe, Jetson und Kabel, senkrechte Rahmenrohre). Der fruehere SAFE-Befund lag nicht am Frontwinkel.
+
+Gesamttest beider Ebenen auf der Jetson (12.11.2026, im Raum, Rollator stehend; `start_all.sh` + `start_high.sh`):
+- Detektor `yolo11n.pt` auf der GPU: etwa 20 Bilder/s, Inferenz 41-44 ms (CPU: 425 ms); `tj-thermal` 45 Grad C.
+- WARN/STOP beider Ebenen, Ansagen "Person", "Stuhl", "Hindernis oben" und "Stopp" ueber den Bluetooth-Lautsprecher; keine
+  Fehlalarme durch Eigenechos. Nicht getestet: Fahrt im Freien, Betrieb ohne Netzkabel und ohne Monitor.
+
+Einrichtung, die dafuer noetig war (Stand 12.11.2026):
+- `python3-venv` fehlt; die venvs werden ohne sudo mit `python3 -m venv --without-pip` und `get-pip.py` angelegt.
+- `~/yolo-venv` (`--system-site-packages`): torch 2.8.0 und torchvision 0.23.0 aus `https://pypi.jetson-ai-lab.io/jp6/cu126`,
+  ultralytics, numpy 1.26 (`-c` mit `numpy<2`). torch 2.9 und neuer verlangen `libcudss.so.0`, das es fuer JetPack 6.2 nicht gibt.
+  torch braucht zusaetzlich das apt-Paket `cuda-cupti-12-6` (`libcupti.so.12`).
+- `camera_detector.py --device auto` (Standard) nimmt die GPU, wenn torch CUDA sieht, sonst die CPU; der Pi bleibt dadurch lauffaehig.
+- `~/piper-venv` mit piper-tts 1.8, Stimme `~/piper-voices/de_DE-thorsten-medium.onnx`, danach `scripts/make_sounds.sh`.
+- Lautsprecher per Bluetooth (alle USB-Ports belegt). JetPack startet `bluetoothd` mit `--noplugin=audio,a2dp,avrcp`
+  (`/usr/lib/systemd/system/bluetooth.service.d/nv-bluetooth-service.conf`), dann gibt es nur HFP mit 8 kHz. Abhilfe: Datei gleichen
+  Namens in `/etc/systemd/system/bluetooth.service.d/` mit `ExecStart=` und `ExecStart=/usr/lib/bluetooth/bluetoothd`, danach
+  `daemon-reload` und Neustart von `bluetooth`; Profil `a2dp_sink` als Standardausgabe. `aplay` laeuft ueber PulseAudio.
+- Uhr: kein RTC-Puffer, und das Hochschulnetz sperrt NTP. Nach jedem Stromverlust die Zeit setzen (z. B. aus dem HTTP-Date-Header).
+
+Fehlende Abhaengigkeiten auf der Jetson:
+- apt: `ros-humble-usb-cam`, `v4l-utils`, `python3-libnvinfer` (TensorRT fuer Python), optional `libnvinfer-bin` (`trtexec`)
+- `~/yolo-venv` (mit `--system-site-packages`): torch und torchvision als Jetson-Wheels von NVIDIA (CUDA 12.6), ultralytics, onnx, numpy < 2
+  (numpy 2 bricht `rclpy` und `cv_bridge`)
+- `~/piper-venv` mit piper-tts und der Stimme de_DE-thorsten-medium, danach `make_sounds.sh`
+
+Reihenfolge der Migration (von geringem zu hohem Risiko):
+1. Dokumentation (dieser Abschnitt)
+2. Startskripte fuer beide ROS-Versionen, Temperatur ueber den Zonentyp
+3. Paket bauen, `install_links.sh`, `front_obstacle` mit einem LiDAR (erledigt; WARN/STOP noch offen, siehe oben)
+4. apt-Pakete, Kamera und unteres LiDAR anschliessen, `start_all.sh` ohne Detektor (erledigt mit `start_sensors.sh`)
+5. Audio (Bluetooth-Lautsprecher, Piper, Ansagen) (erledigt)
+6. `~/yolo-venv` mit CUDA-PyTorch, Detektor zuerst mit `yolo11n.pt` auf der GPU (erledigt)
+7. `camera_detector.py`: Geraet und Modell als Argumente statt `device='cpu'` (erledigt)
+8. TensorRT-Engine exportieren und vergleichen (Inferenzzeit, Erkennungen)
+9. Feldbetrieb: WLAN-Hotspot, Betrieb ohne Monitor, Energiemodus
+10. Gesamttest beider Ebenen mit Lautsprecher und Protokoll
