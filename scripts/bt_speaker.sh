@@ -18,6 +18,17 @@ done
 pactl info > /dev/null 2>&1 || { echo "WARNUNG: PulseAudio laeuft nicht (loginctl enable-linger gesetzt?)"; exit 1; }
 sleep 2   # Endpunkte anmelden lassen
 
+# Der Lautsprecher (vertraut) verbindet sich nach dem Booten oft selbst, bevor PulseAudio laeuft: dann steht
+# "Connected: yes", aber PulseAudio hat keine Karte (kein A2DP). In dem Fall trennen und neu verbinden (17.11.2026).
+if connected && ! pactl list short cards 2>/dev/null | grep -q "bluez_card.$ID"; then
+  sleep 3
+  if ! pactl list short cards 2>/dev/null | grep -q "bluez_card.$ID"; then
+    echo "Lautsprecher verbunden, aber ohne Audioprofil: trenne und verbinde neu"
+    bluetoothctl disconnect "$MAC" > /dev/null 2>&1
+    sleep 3
+  fi
+fi
+
 for i in 1 2 3; do
   connected && break
   bluetoothctl connect "$MAC" > /dev/null 2>&1
